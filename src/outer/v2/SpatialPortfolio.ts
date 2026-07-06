@@ -147,8 +147,12 @@ const HUD_CAMERA_ICON_URL = '/textures/UI/camera.svg';
 const HUD_MOUSE_ICON_URL = '/textures/UI/mouse.svg';
 const ROOM_AMBIENCE_AUDIO_URL = '/audio/atmosphere/office.mp3';
 const ROOM_STARTUP_AUDIO_URL = '/audio/startup/startup.mp3';
+const DOOR_OPEN_AUDIO_URL = '/audio/room/door-open-creak.mp3';
+const THRESHOLD_WHOOSH_AUDIO_URL = '/audio/room/threshold-whoosh.mp3';
 const ROOM_AMBIENCE_VOLUME = 0.13;
 const ROOM_STARTUP_VOLUME = 0.34;
+const DOOR_OPEN_VOLUME = 0.58;
+const THRESHOLD_WHOOSH_VOLUME = 0.34;
 const HUD_TYPE_VOLUME = 0.028;
 const MONITOR_RAISER_HEIGHT = 0.15;
 const DOOR_REVEAL_ORIGIN_Y = 1.08;
@@ -288,6 +292,8 @@ export default class SpatialPortfolio {
     private audioMasterGain: GainNode | null;
     private roomAmbienceAudio: HTMLAudioElement | null;
     private roomStartupAudio: HTMLAudioElement | null;
+    private doorOpenAudio: HTMLAudioElement | null;
+    private thresholdWhooshAudio: HTMLAudioElement | null;
     private ambienceFadeTween: { stop: () => void } | null;
     private ambienceVolume: number;
     private roomAmbienceStarted: boolean;
@@ -411,6 +417,8 @@ export default class SpatialPortfolio {
         this.audioMasterGain = null;
         this.roomAmbienceAudio = null;
         this.roomStartupAudio = null;
+        this.doorOpenAudio = null;
+        this.thresholdWhooshAudio = null;
         this.ambienceFadeTween = null;
         this.ambienceVolume = 0;
         this.roomAmbienceStarted = false;
@@ -949,6 +957,23 @@ export default class SpatialPortfolio {
         this.roomStartupAudio = new Audio(ROOM_STARTUP_AUDIO_URL);
         this.roomStartupAudio.preload = 'auto';
         this.roomStartupAudio.volume = ROOM_STARTUP_VOLUME;
+
+        this.doorOpenAudio = this.createOneShotAudio(
+            DOOR_OPEN_AUDIO_URL,
+            DOOR_OPEN_VOLUME
+        );
+        this.thresholdWhooshAudio = this.createOneShotAudio(
+            THRESHOLD_WHOOSH_AUDIO_URL,
+            THRESHOLD_WHOOSH_VOLUME
+        );
+    }
+
+    private createOneShotAudio(src: string, volume: number) {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.volume = volume;
+        audio.muted = this.muted;
+        return audio;
     }
 
     private getSpatialAudioContext() {
@@ -979,113 +1004,30 @@ export default class SpatialPortfolio {
         return context;
     }
 
-    private makeNoiseBuffer(context: AudioContext, duration: number) {
-        const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
-        const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
-        const data = buffer.getChannelData(0);
-        let previous = 0;
-
-        for (let index = 0; index < sampleCount; index += 1) {
-            const progress = index / sampleCount;
-            const white = Math.random() * 2 - 1;
-            previous = previous * 0.86 + white * 0.14;
-            data[index] = previous * Math.pow(1 - progress, 1.55);
-        }
-
-        return buffer;
-    }
-
     private connectToMaster(node: AudioNode) {
         if (!this.audioMasterGain) return;
         node.connect(this.audioMasterGain);
     }
 
+    private playOneShotAudio(audio: HTMLAudioElement | null, volume: number) {
+        if (!audio || this.muted) return;
+        audio.pause();
+        audio.currentTime = 0;
+        audio.muted = false;
+        audio.volume = volume;
+        audio.play().catch(() => {
+            // Audio is decorative; browsers can still reject playback in edge cases.
+        });
+    }
+
     private playDoorOpenSound() {
-        const context = this.unlockSpatialAudio();
-        if (!context || this.muted || REDUCED_MOTION) return;
-
-        const now = context.currentTime;
-
-        const handle = context.createOscillator();
-        const handleGain = context.createGain();
-        handle.type = 'triangle';
-        handle.frequency.setValueAtTime(190, now);
-        handle.frequency.exponentialRampToValueAtTime(78, now + 0.16);
-        handleGain.gain.setValueAtTime(0.0001, now);
-        handleGain.gain.exponentialRampToValueAtTime(0.075, now + 0.018);
-        handleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-        handle.connect(handleGain);
-        this.connectToMaster(handleGain);
-        handle.start(now);
-        handle.stop(now + 0.2);
-
-        const creak = context.createBufferSource();
-        const creakFilter = context.createBiquadFilter();
-        const creakGain = context.createGain();
-        creak.buffer = this.makeNoiseBuffer(context, 1.45);
-        creak.playbackRate.setValueAtTime(0.8, now);
-        creakFilter.type = 'bandpass';
-        creakFilter.frequency.setValueAtTime(260, now + 0.06);
-        creakFilter.frequency.exponentialRampToValueAtTime(820, now + 0.9);
-        creakFilter.Q.setValueAtTime(2.4, now);
-        creakGain.gain.setValueAtTime(0.0001, now);
-        creakGain.gain.linearRampToValueAtTime(0.09, now + 0.12);
-        creakGain.gain.linearRampToValueAtTime(0.055, now + 0.64);
-        creakGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.42);
-        creak.connect(creakFilter);
-        creakFilter.connect(creakGain);
-        this.connectToMaster(creakGain);
-        creak.start(now + 0.035);
-        creak.stop(now + 1.5);
-
-        const frame = context.createOscillator();
-        const frameGain = context.createGain();
-        frame.type = 'sine';
-        frame.frequency.setValueAtTime(54, now + 0.24);
-        frame.frequency.exponentialRampToValueAtTime(39, now + 0.62);
-        frameGain.gain.setValueAtTime(0.0001, now + 0.22);
-        frameGain.gain.linearRampToValueAtTime(0.045, now + 0.3);
-        frameGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.86);
-        frame.connect(frameGain);
-        this.connectToMaster(frameGain);
-        frame.start(now + 0.22);
-        frame.stop(now + 0.9);
+        this.unlockSpatialAudio();
+        this.playOneShotAudio(this.doorOpenAudio, DOOR_OPEN_VOLUME);
     }
 
     private playThresholdCrossingSound() {
-        const context = this.unlockSpatialAudio();
-        if (!context || this.muted || REDUCED_MOTION) return;
-
-        const now = context.currentTime;
-        const rush = context.createBufferSource();
-        const filter = context.createBiquadFilter();
-        const gain = context.createGain();
-        rush.buffer = this.makeNoiseBuffer(context, 1.1);
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(2800, now);
-        filter.frequency.exponentialRampToValueAtTime(620, now + 0.85);
-        filter.Q.setValueAtTime(0.9, now);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(0.12, now + 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
-        rush.connect(filter);
-        filter.connect(gain);
-        this.connectToMaster(gain);
-        rush.start(now);
-        rush.stop(now + 1.12);
-
-        const sub = context.createOscillator();
-        const subGain = context.createGain();
-        sub.type = 'sine';
-        sub.frequency.setValueAtTime(42, now);
-        sub.frequency.linearRampToValueAtTime(61, now + 0.48);
-        subGain.gain.setValueAtTime(0.0001, now);
-        subGain.gain.linearRampToValueAtTime(0.07, now + 0.08);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
-        sub.connect(subGain);
-        this.connectToMaster(subGain);
-        sub.start(now);
-        sub.stop(now + 0.82);
+        this.unlockSpatialAudio();
+        this.playOneShotAudio(this.thresholdWhooshAudio, THRESHOLD_WHOOSH_VOLUME);
     }
 
     private playRoomArrivalSound() {
@@ -1154,6 +1096,14 @@ export default class SpatialPortfolio {
         if (this.roomStartupAudio) {
             this.roomStartupAudio.muted = this.muted;
             this.roomStartupAudio.volume = this.muted ? 0 : ROOM_STARTUP_VOLUME;
+        }
+        if (this.doorOpenAudio) {
+            this.doorOpenAudio.muted = this.muted;
+            this.doorOpenAudio.volume = this.muted ? 0 : DOOR_OPEN_VOLUME;
+        }
+        if (this.thresholdWhooshAudio) {
+            this.thresholdWhooshAudio.muted = this.muted;
+            this.thresholdWhooshAudio.volume = this.muted ? 0 : THRESHOLD_WHOOSH_VOLUME;
         }
     }
 
