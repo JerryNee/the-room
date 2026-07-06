@@ -145,6 +145,11 @@ const HUD_VOLUME_ON_ICON_URL = '/textures/UI/volume_on.svg';
 const HUD_VOLUME_OFF_ICON_URL = '/textures/UI/volume_off.svg';
 const HUD_CAMERA_ICON_URL = '/textures/UI/camera.svg';
 const HUD_MOUSE_ICON_URL = '/textures/UI/mouse.svg';
+const ROOM_AMBIENCE_AUDIO_URL = '/audio/atmosphere/office.mp3';
+const ROOM_STARTUP_AUDIO_URL = '/audio/startup/startup.mp3';
+const ROOM_AMBIENCE_VOLUME = 0.13;
+const ROOM_STARTUP_VOLUME = 0.34;
+const HUD_TYPE_VOLUME = 0.028;
 const MONITOR_RAISER_HEIGHT = 0.15;
 const DOOR_REVEAL_ORIGIN_Y = 1.08;
 const DOOR_REVEAL_START_SCALE = 0.006;
@@ -279,6 +284,13 @@ export default class SpatialPortfolio {
     private muted: boolean;
     private freeOrbitEnabled: boolean;
     private doorTravelProgress: number;
+    private audioContext: AudioContext | null;
+    private audioMasterGain: GainNode | null;
+    private roomAmbienceAudio: HTMLAudioElement | null;
+    private roomStartupAudio: HTMLAudioElement | null;
+    private ambienceFadeTween: { stop: () => void } | null;
+    private ambienceVolume: number;
+    private roomAmbienceStarted: boolean;
 
     constructor() {
         // Debug handle for tooling (e.g. the Blender shadow-bake pipeline
@@ -395,6 +407,14 @@ export default class SpatialPortfolio {
         this.muted = false;
         this.freeOrbitEnabled = false;
         this.doorTravelProgress = 0;
+        this.audioContext = null;
+        this.audioMasterGain = null;
+        this.roomAmbienceAudio = null;
+        this.roomStartupAudio = null;
+        this.ambienceFadeTween = null;
+        this.ambienceVolume = 0;
+        this.roomAmbienceStarted = false;
+        this.setupSpatialAudio();
 
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
@@ -917,7 +937,245 @@ export default class SpatialPortfolio {
     }
 
     private pulseHudTypeSound(character = '') {
-        window.postMessage({ type: 'keydown', key: `_AUTO_${character}` }, '*');
+        this.playHudTypeSound(character);
+    }
+
+    private setupSpatialAudio() {
+        this.roomAmbienceAudio = new Audio(ROOM_AMBIENCE_AUDIO_URL);
+        this.roomAmbienceAudio.loop = true;
+        this.roomAmbienceAudio.preload = 'auto';
+        this.roomAmbienceAudio.volume = 0;
+
+        this.roomStartupAudio = new Audio(ROOM_STARTUP_AUDIO_URL);
+        this.roomStartupAudio.preload = 'auto';
+        this.roomStartupAudio.volume = ROOM_STARTUP_VOLUME;
+    }
+
+    private getSpatialAudioContext() {
+        if (this.audioContext) return this.audioContext;
+
+        const AudioContextConstructor =
+            window.AudioContext ||
+            (window as typeof window & {
+                webkitAudioContext?: typeof AudioContext;
+            }).webkitAudioContext;
+        if (!AudioContextConstructor) return null;
+
+        this.audioContext = new AudioContextConstructor();
+        this.audioMasterGain = this.audioContext.createGain();
+        this.audioMasterGain.gain.value = this.muted ? 0 : 1;
+        this.audioMasterGain.connect(this.audioContext.destination);
+        return this.audioContext;
+    }
+
+    private unlockSpatialAudio() {
+        const context = this.getSpatialAudioContext();
+        if (!context) return null;
+        if (context.state !== 'running') {
+            context.resume().catch(() => {
+                // Browsers may still deny audio if this is not in a trusted gesture.
+            });
+        }
+        return context;
+    }
+
+    private makeNoiseBuffer(context: AudioContext, duration: number) {
+        const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+        const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+        const data = buffer.getChannelData(0);
+        let previous = 0;
+
+        for (let index = 0; index < sampleCount; index += 1) {
+            const progress = index / sampleCount;
+            const white = Math.random() * 2 - 1;
+            previous = previous * 0.86 + white * 0.14;
+            data[index] = previous * Math.pow(1 - progress, 1.55);
+        }
+
+        return buffer;
+    }
+
+    private connectToMaster(node: AudioNode) {
+        if (!this.audioMasterGain) return;
+        node.connect(this.audioMasterGain);
+    }
+
+    private playDoorOpenSound() {
+        const context = this.unlockSpatialAudio();
+        if (!context || this.muted || REDUCED_MOTION) return;
+
+        const now = context.currentTime;
+
+        const handle = context.createOscillator();
+        const handleGain = context.createGain();
+        handle.type = 'triangle';
+        handle.frequency.setValueAtTime(190, now);
+        handle.frequency.exponentialRampToValueAtTime(78, now + 0.16);
+        handleGain.gain.setValueAtTime(0.0001, now);
+        handleGain.gain.exponentialRampToValueAtTime(0.075, now + 0.018);
+        handleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        handle.connect(handleGain);
+        this.connectToMaster(handleGain);
+        handle.start(now);
+        handle.stop(now + 0.2);
+
+        const creak = context.createBufferSource();
+        const creakFilter = context.createBiquadFilter();
+        const creakGain = context.createGain();
+        creak.buffer = this.makeNoiseBuffer(context, 1.45);
+        creak.playbackRate.setValueAtTime(0.8, now);
+        creakFilter.type = 'bandpass';
+        creakFilter.frequency.setValueAtTime(260, now + 0.06);
+        creakFilter.frequency.exponentialRampToValueAtTime(820, now + 0.9);
+        creakFilter.Q.setValueAtTime(2.4, now);
+        creakGain.gain.setValueAtTime(0.0001, now);
+        creakGain.gain.linearRampToValueAtTime(0.09, now + 0.12);
+        creakGain.gain.linearRampToValueAtTime(0.055, now + 0.64);
+        creakGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.42);
+        creak.connect(creakFilter);
+        creakFilter.connect(creakGain);
+        this.connectToMaster(creakGain);
+        creak.start(now + 0.035);
+        creak.stop(now + 1.5);
+
+        const frame = context.createOscillator();
+        const frameGain = context.createGain();
+        frame.type = 'sine';
+        frame.frequency.setValueAtTime(54, now + 0.24);
+        frame.frequency.exponentialRampToValueAtTime(39, now + 0.62);
+        frameGain.gain.setValueAtTime(0.0001, now + 0.22);
+        frameGain.gain.linearRampToValueAtTime(0.045, now + 0.3);
+        frameGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.86);
+        frame.connect(frameGain);
+        this.connectToMaster(frameGain);
+        frame.start(now + 0.22);
+        frame.stop(now + 0.9);
+    }
+
+    private playThresholdCrossingSound() {
+        const context = this.unlockSpatialAudio();
+        if (!context || this.muted || REDUCED_MOTION) return;
+
+        const now = context.currentTime;
+        const rush = context.createBufferSource();
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+        rush.buffer = this.makeNoiseBuffer(context, 1.1);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2800, now);
+        filter.frequency.exponentialRampToValueAtTime(620, now + 0.85);
+        filter.Q.setValueAtTime(0.9, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
+        rush.connect(filter);
+        filter.connect(gain);
+        this.connectToMaster(gain);
+        rush.start(now);
+        rush.stop(now + 1.12);
+
+        const sub = context.createOscillator();
+        const subGain = context.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(42, now);
+        sub.frequency.linearRampToValueAtTime(61, now + 0.48);
+        subGain.gain.setValueAtTime(0.0001, now);
+        subGain.gain.linearRampToValueAtTime(0.07, now + 0.08);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
+        sub.connect(subGain);
+        this.connectToMaster(subGain);
+        sub.start(now);
+        sub.stop(now + 0.82);
+    }
+
+    private playRoomArrivalSound() {
+        this.unlockSpatialAudio();
+        this.startRoomAmbience();
+
+        const startup = this.roomStartupAudio;
+        if (!startup) return;
+        startup.pause();
+        startup.currentTime = 0;
+        startup.muted = this.muted;
+        startup.volume = this.muted ? 0 : ROOM_STARTUP_VOLUME;
+        startup.play().catch(() => {
+            // Non-critical: the ambient bed still carries the transition.
+        });
+    }
+
+    private startRoomAmbience() {
+        const ambience = this.roomAmbienceAudio;
+        if (!ambience) return;
+
+        if (!this.roomAmbienceStarted) {
+            this.roomAmbienceStarted = true;
+            ambience.muted = this.muted;
+            ambience.volume = 0;
+            ambience.play().catch(() => {
+                this.roomAmbienceStarted = false;
+            });
+        }
+
+        this.fadeRoomAmbienceTo(ROOM_AMBIENCE_VOLUME, REDUCED_MOTION ? 1 : 2600);
+    }
+
+    private fadeRoomAmbienceTo(volume: number, duration: number) {
+        if (!this.roomAmbienceAudio) return;
+        if (this.ambienceFadeTween) this.ambienceFadeTween.stop();
+
+        const state = { volume: this.ambienceVolume };
+        this.ambienceFadeTween = new TWEEN.Tween(state)
+            .to({ volume }, duration)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .onUpdate(() => this.setRoomAmbienceVolume(state.volume))
+            .onComplete(() => {
+                this.setRoomAmbienceVolume(volume);
+                this.ambienceFadeTween = null;
+            })
+            .start();
+    }
+
+    private setRoomAmbienceVolume(volume: number) {
+        this.ambienceVolume = volume;
+        if (!this.roomAmbienceAudio) return;
+        this.roomAmbienceAudio.volume = this.muted ? 0 : volume;
+        this.roomAmbienceAudio.muted = this.muted;
+    }
+
+    private applyAudioMuteState() {
+        if (this.audioMasterGain && this.audioContext) {
+            this.audioMasterGain.gain.setTargetAtTime(
+                this.muted ? 0 : 1,
+                this.audioContext.currentTime,
+                0.018
+            );
+        }
+        this.setRoomAmbienceVolume(this.ambienceVolume);
+        if (this.roomStartupAudio) {
+            this.roomStartupAudio.muted = this.muted;
+            this.roomStartupAudio.volume = this.muted ? 0 : ROOM_STARTUP_VOLUME;
+        }
+    }
+
+    private playHudTypeSound(character = '') {
+        const context = this.getSpatialAudioContext();
+        if (!context || this.muted || !this.roomAmbienceStarted || REDUCED_MOTION) {
+            return;
+        }
+
+        const now = context.currentTime;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const charCode = character.charCodeAt(0) || 0;
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(920 + (charCode % 6) * 34, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(HUD_TYPE_VOLUME, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.052);
+        oscillator.connect(gain);
+        this.connectToMaster(gain);
+        oscillator.start(now);
+        oscillator.stop(now + 0.06);
     }
 
     private toggleMuted() {
@@ -934,6 +1192,7 @@ export default class SpatialPortfolio {
         document.querySelectorAll<HTMLMediaElement>('audio, video').forEach((media) => {
             media.muted = this.muted;
         });
+        this.applyAudioMuteState();
         window.dispatchEvent(
             new CustomEvent('roomMuteToggle', {
                 detail: { muted: this.muted },
@@ -3014,6 +3273,7 @@ export default class SpatialPortfolio {
         if (!this.doorReady) return;
         this.state = 'door-opening';
         this.doorTravelProgress = 0;
+        this.playDoorOpenSound();
         this.resetEntryDoorFade();
         this.resetRoomWarmth();
         this.setHovered(null);
@@ -3282,6 +3542,8 @@ export default class SpatialPortfolio {
 
                 if (value >= releaseAt) {
                     if (!portalReleased) {
+                        this.playThresholdCrossingSound();
+                        this.playRoomArrivalSound();
                         this.portalStencil.visible = false;
                         this.portalSurface.visible = false;
                         this.setPortalPreviewMode(false);
@@ -3296,6 +3558,10 @@ export default class SpatialPortfolio {
                 }
             })
             .onComplete(() => {
+                if (!portalReleased) {
+                    this.playThresholdCrossingSound();
+                    this.playRoomArrivalSound();
+                }
                 this.portalStencil.visible = false;
                 this.portalSurface.visible = false;
                 this.setPortalPreviewMode(false);
