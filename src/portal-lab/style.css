@@ -1,0 +1,74 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 50%, #f8f7f3 0%, #cfd2d0 62%, #8e9698 100%);
+  color: #172123;
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+#portal-lab {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.portal-lab-ui {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgb(23 33 35 / 0.12);
+  border-radius: 8px;
+  background: rgb(250 248 243 / 0.88);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.portal-lab-ui span {
+  color: rgb(23 33 35 / 0.68);
+}
+
+.portal-crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.portal-crosshair::before,
+.portal-crosshair::after {
+  position: absolute;
+  content: "";
+  background: rgb(23 33 35 / 0.42);
+}
+
+.portal-crosshair::before {
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 12px;
+}
+
+.portal-crosshair::after {
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+}
