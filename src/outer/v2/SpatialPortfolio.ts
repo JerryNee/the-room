@@ -72,9 +72,12 @@ const CAMERA_POSES: Record<string, CameraPose> = {
 };
 
 const FREE_ORBIT_OVERVIEW_POSE: CameraPose = {
-    position: roomPoint(0.22, 2.24, 0.38),
+    position: roomPoint(0.22, 2.5, 0.38),
     target: roomPoint(0.02, 0.88, deskZ(-3.58)),
 };
+// Aim below the monitor center so the desk group sits vertically centered
+// in the free-orbit overview instead of hugging the bottom of the frame.
+const FREE_ORBIT_TARGET_Y_OFFSET = -0.4;
 
 const HOTSPOTS: Record<Exclude<HotspotKey, 'door'>, HotspotConfig> = {
     computer: {
@@ -145,14 +148,27 @@ const HUD_VOLUME_ON_ICON_URL = '/textures/UI/volume_on.svg';
 const HUD_VOLUME_OFF_ICON_URL = '/textures/UI/volume_off.svg';
 const HUD_CAMERA_ICON_URL = '/textures/UI/camera.svg';
 const HUD_MOUSE_ICON_URL = '/textures/UI/mouse.svg';
-const ROOM_AMBIENCE_AUDIO_URL = '/audio/atmosphere/office.mp3';
+const ROOM_AMBIENCE_AUDIO_URL = '/audio/room/jerry-room-house-tone.mp3';
 const ROOM_STARTUP_AUDIO_URL = '/audio/startup/startup.mp3';
-const DOOR_OPEN_AUDIO_URL = '/audio/room/door-open-creak.mp3';
+const DOOR_OPEN_AUDIO_URL = '/audio/room/door-open-b-hard-cut-105.mp3';
 const THRESHOLD_WHOOSH_AUDIO_URL = '/audio/room/threshold-whoosh.mp3';
-const ROOM_AMBIENCE_VOLUME = 0.13;
+const MONITOR_MOUSE_DOWN_AUDIO_URL = '/audio/mouse/mouse_down.mp3';
+const MONITOR_MOUSE_UP_AUDIO_URL = '/audio/mouse/mouse_up.mp3';
+const MONITOR_KEYBOARD_AUDIO_URLS = [
+    '/audio/keyboard/key_1.mp3',
+    '/audio/keyboard/key_2.mp3',
+    '/audio/keyboard/key_3.mp3',
+    '/audio/keyboard/key_4.mp3',
+    '/audio/keyboard/key_5.mp3',
+    '/audio/keyboard/key_6.mp3',
+];
+const ROOM_AMBIENCE_VOLUME = 0.4;
 const ROOM_STARTUP_VOLUME = 0.34;
-const DOOR_OPEN_VOLUME = 0.58;
-const THRESHOLD_WHOOSH_VOLUME = 0.34;
+const DOOR_OPEN_VOLUME = 0.75;
+const THRESHOLD_WHOOSH_VOLUME = 0;
+const MONITOR_MOUSE_DOWN_VOLUME = 0.3;
+const MONITOR_MOUSE_UP_VOLUME = 0.22;
+const MONITOR_KEYBOARD_VOLUME = 0.26;
 const HUD_TYPE_VOLUME = 0.028;
 const MONITOR_RAISER_HEIGHT = 0.15;
 const DOOR_REVEAL_ORIGIN_Y = 1.08;
@@ -196,6 +212,9 @@ const MONITOR_CSS_SIZE = new THREE.Vector2(1280, 720);
 const FALLBACK_MONITOR_WORLD_SIZE = new THREE.Vector2(0.92, 0.518);
 const FALLBACK_MONITOR_POSITION = new THREE.Vector3(0, 1.255, -3.545);
 const MONITOR_NORMAL = new THREE.Vector3(0, 0, 1);
+const MONITOR_SIDE_HIDE_FACING = 0.015;
+const MONITOR_SIDE_FULL_FACING = 0.15;
+const MONITOR_SIDE_BLACK_OPACITY = 0.94;
 const STUDIO_DISPLAY_SCREEN_MESH = 'NYVmzMLiovxElXF';
 const STUDIO_DISPLAY_SCREEN_SCALE = new THREE.Vector2(1.006, 1.006);
 const STUDIO_DISPLAY_SCREEN_VERTICAL_OFFSET = 0;
@@ -294,6 +313,10 @@ export default class SpatialPortfolio {
     private roomStartupAudio: HTMLAudioElement | null;
     private doorOpenAudio: HTMLAudioElement | null;
     private thresholdWhooshAudio: HTMLAudioElement | null;
+    private monitorMouseDownAudio: HTMLAudioElement | null;
+    private monitorMouseUpAudio: HTMLAudioElement | null;
+    private monitorKeyboardAudios: HTMLAudioElement[];
+    private monitorKeyboardAudioCursor: number;
     private ambienceFadeTween: { stop: () => void } | null;
     private ambienceVolume: number;
     private roomAmbienceStarted: boolean;
@@ -419,6 +442,10 @@ export default class SpatialPortfolio {
         this.roomStartupAudio = null;
         this.doorOpenAudio = null;
         this.thresholdWhooshAudio = null;
+        this.monitorMouseDownAudio = null;
+        this.monitorMouseUpAudio = null;
+        this.monitorKeyboardAudios = [];
+        this.monitorKeyboardAudioCursor = 0;
         this.ambienceFadeTween = null;
         this.ambienceVolume = 0;
         this.roomAmbienceStarted = false;
@@ -429,9 +456,15 @@ export default class SpatialPortfolio {
             alpha: true,
             powerPreference: 'high-performance',
             stencil: true,
-            // The office-desk model has near-coplanar intersecting planks that
-            // z-fight at 0.05/100 clip range; log depth buffer resolves it.
-            logarithmicDepthBuffer: true,
+            // Log depth + MSAA makes silhouette edges of geometry hidden
+            // behind the monitor (its stand, rear ports) bleed through the
+            // screen's occlusion plane at far camera distances: log depth is
+            // written per pixel via gl_FragDepth, and at edge pixels the
+            // extrapolated depth can land centimeters closer to the camera,
+            // beating the punch-out plane. The standard depth buffer at the
+            // 0.05/100 clip range shows no z-fighting on the office-desk
+            // planks it was originally enabled for, so keep it off.
+            logarithmicDepthBuffer: false,
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -446,7 +479,7 @@ export default class SpatialPortfolio {
         this.orbitControls.enableDamping = true;
         this.orbitControls.dampingFactor = 0.06;
         this.orbitControls.enablePan = false;
-        this.orbitControls.minDistance = 1.2;
+        this.orbitControls.minDistance = 0.95;
         this.orbitControls.maxDistance = 4.8;
         this.orbitControls.minPolarAngle = 0.62;
         this.orbitControls.maxPolarAngle = Math.PI * 0.49;
@@ -724,6 +757,7 @@ export default class SpatialPortfolio {
         if (!point) return;
         event.preventDefault();
         event.stopPropagation();
+        this.playMonitorMouseSound(event.type);
 
         const iframeDocument = this.monitorIframe.contentDocument;
         const target =
@@ -966,6 +1000,17 @@ export default class SpatialPortfolio {
             THRESHOLD_WHOOSH_AUDIO_URL,
             THRESHOLD_WHOOSH_VOLUME
         );
+        this.monitorMouseDownAudio = this.createOneShotAudio(
+            MONITOR_MOUSE_DOWN_AUDIO_URL,
+            MONITOR_MOUSE_DOWN_VOLUME
+        );
+        this.monitorMouseUpAudio = this.createOneShotAudio(
+            MONITOR_MOUSE_UP_AUDIO_URL,
+            MONITOR_MOUSE_UP_VOLUME
+        );
+        this.monitorKeyboardAudios = MONITOR_KEYBOARD_AUDIO_URLS.map((src) =>
+            this.createOneShotAudio(src, MONITOR_KEYBOARD_VOLUME)
+        );
     }
 
     private createOneShotAudio(src: string, volume: number) {
@@ -1028,6 +1073,52 @@ export default class SpatialPortfolio {
     private playThresholdCrossingSound() {
         this.unlockSpatialAudio();
         this.playOneShotAudio(this.thresholdWhooshAudio, THRESHOLD_WHOOSH_VOLUME);
+    }
+
+    private playMonitorMouseSound(type: string) {
+        if (type === 'mousedown') {
+            this.playOneShotAudio(this.monitorMouseDownAudio, MONITOR_MOUSE_DOWN_VOLUME);
+        } else if (type === 'mouseup') {
+            this.playOneShotAudio(this.monitorMouseUpAudio, MONITOR_MOUSE_UP_VOLUME);
+        }
+    }
+
+    private playMonitorKeyboardSound(event: KeyboardEvent) {
+        if (
+            this.muted ||
+            event.repeat ||
+            !this.isMonitorKeyboardSoundActive() ||
+            !this.shouldPlayMonitorKeyboardSound(event)
+        ) {
+            return;
+        }
+
+        const audio = this.monitorKeyboardAudios[this.monitorKeyboardAudioCursor];
+        this.monitorKeyboardAudioCursor =
+            (this.monitorKeyboardAudioCursor + 1) %
+            Math.max(1, this.monitorKeyboardAudios.length);
+        this.playOneShotAudio(audio, MONITOR_KEYBOARD_VOLUME);
+    }
+
+    private isMonitorKeyboardSoundActive() {
+        return (
+            !this.placementMode &&
+            this.state === 'focus-computer' &&
+            this.focusedKey === 'computer' &&
+            this.monitorInputProxyEl.classList.contains('is-visible')
+        );
+    }
+
+    private shouldPlayMonitorKeyboardSound(event: KeyboardEvent) {
+        if (event.key === 'Escape') return false;
+        if (event.metaKey || event.ctrlKey || event.altKey) return false;
+        return [
+            'Backspace',
+            'Delete',
+            'Enter',
+            'Tab',
+            ' ',
+        ].includes(event.key) || event.key.length === 1;
     }
 
     private playRoomArrivalSound() {
@@ -1105,6 +1196,20 @@ export default class SpatialPortfolio {
             this.thresholdWhooshAudio.muted = this.muted;
             this.thresholdWhooshAudio.volume = this.muted ? 0 : THRESHOLD_WHOOSH_VOLUME;
         }
+        if (this.monitorMouseDownAudio) {
+            this.monitorMouseDownAudio.muted = this.muted;
+            this.monitorMouseDownAudio.volume = this.muted
+                ? 0
+                : MONITOR_MOUSE_DOWN_VOLUME;
+        }
+        if (this.monitorMouseUpAudio) {
+            this.monitorMouseUpAudio.muted = this.muted;
+            this.monitorMouseUpAudio.volume = this.muted ? 0 : MONITOR_MOUSE_UP_VOLUME;
+        }
+        this.monitorKeyboardAudios.forEach((audio) => {
+            audio.muted = this.muted;
+            audio.volume = this.muted ? 0 : MONITOR_KEYBOARD_VOLUME;
+        });
     }
 
     private playHudTypeSound(character = '') {
@@ -1172,7 +1277,7 @@ export default class SpatialPortfolio {
         if (enabled) {
             document.body.style.cursor = 'grab';
             const syncOrbitControls = () => {
-                this.orbitControls.target.copy(this.cameraTarget);
+                this.orbitControls.target.copy(this.getFreeOrbitTarget());
                 this.orbitControls.object.position.copy(this.camera.position);
                 this.orbitControls.enabled = true;
                 this.orbitControls.update();
@@ -1181,7 +1286,7 @@ export default class SpatialPortfolio {
             if (animateHome && this.state === 'room-idle') {
                 this.orbitControls.enabled = false;
                 this.moveCamera(
-                    FREE_ORBIT_OVERVIEW_POSE,
+                    this.getFreeOrbitOverviewPose(),
                     REDUCED_MOTION ? 1 : 850,
                     syncOrbitControls,
                     TWEEN.Easing.Cubic.Out
@@ -1203,6 +1308,45 @@ export default class SpatialPortfolio {
             return;
         }
         this.beginRoomOrbit();
+    }
+
+    private getFreeOrbitTarget() {
+        if (!this.monitorCssObject) {
+            return FREE_ORBIT_OVERVIEW_POSE.target.clone();
+        }
+
+        this.monitorCssObject.updateMatrixWorld(true);
+        const target = new THREE.Vector3();
+        this.monitorCssObject.getWorldPosition(target);
+        target.y += FREE_ORBIT_TARGET_Y_OFFSET;
+        return target;
+    }
+
+    // Slide the orbit target with zoom distance: far out it sits below the
+    // monitor so the whole desk group is centered, and as the camera dollies
+    // in it rises back to the monitor center so zooming magnifies the screen.
+    private updateFreeOrbitTarget() {
+        if (!this.monitorCssObject) return;
+        const anchor = new THREE.Vector3();
+        this.monitorCssObject.getWorldPosition(anchor);
+        const distance = this.camera.position.distanceTo(
+            this.orbitControls.target
+        );
+        const zoomOutAmount = THREE.MathUtils.clamp(
+            (distance - this.orbitControls.minDistance) /
+                (this.orbitControls.maxDistance - this.orbitControls.minDistance),
+            0,
+            1
+        );
+        anchor.y += FREE_ORBIT_TARGET_Y_OFFSET * zoomOutAmount;
+        this.orbitControls.target.lerp(anchor, 0.18);
+    }
+
+    private getFreeOrbitOverviewPose(): CameraPose {
+        return {
+            position: FREE_ORBIT_OVERVIEW_POSE.position.clone(),
+            target: this.getFreeOrbitTarget(),
+        };
     }
 
     private addLights() {
@@ -2925,6 +3069,7 @@ export default class SpatialPortfolio {
 
     private onKeyDown(event: KeyboardEvent) {
         if (this.handlePlacementKey(event)) return;
+        this.playMonitorKeyboardSound(event);
 
         if (
             this.state === 'entry-door' &&
@@ -3808,10 +3953,15 @@ export default class SpatialPortfolio {
             0,
             0.94
         );
-        const visible =
-            this.roomGroup.visible &&
-            this.state !== 'entry-door' &&
-            facing > 0.035;
+        const screenActive = this.roomGroup.visible && this.state !== 'entry-door';
+        const angleVisibility = smootherStep(
+            THREE.MathUtils.clamp(
+                (facing - MONITOR_SIDE_HIDE_FACING) /
+                    (MONITOR_SIDE_FULL_FACING - MONITOR_SIDE_HIDE_FACING),
+                0,
+                1
+            )
+        );
         const doorFade =
             this.state === 'door-opening'
                 ? THREE.MathUtils.clamp(
@@ -3821,7 +3971,10 @@ export default class SpatialPortfolio {
                       1
                   )
                 : 1;
-        const contentOpacity = visible ? smootherStep(doorFade) : 0;
+        const screenReveal = screenActive ? smootherStep(doorFade) : 0;
+        const contentOpacity = screenReveal * angleVisibility;
+        const blackScreenOpacity =
+            screenReveal * (1 - angleVisibility) * MONITOR_SIDE_BLACK_OPACITY;
         const compositorWarmupOpacity = this.state === 'door-opening' ? 0.001 : 0;
         const cssOpacity = Math.max(contentOpacity, compositorWarmupOpacity);
 
@@ -3829,7 +3982,10 @@ export default class SpatialPortfolio {
             this.monitorGlassMaterial.opacity = contentOpacity * 0.045;
             this.monitorGlassMaterial.needsUpdate = true;
         }
-        this.monitorDimmingMaterial.opacity = contentOpacity * dimOpacity;
+        this.monitorDimmingMaterial.opacity = Math.max(
+            contentOpacity * dimOpacity,
+            blackScreenOpacity
+        );
         this.monitorElement.style.opacity = cssOpacity.toFixed(3);
         this.monitorElement.style.filter = `brightness(${THREE.MathUtils.lerp(
             1,
@@ -3962,7 +4118,12 @@ export default class SpatialPortfolio {
         this.updateHover();
         this.updateRoomHud();
         this.updateMonitorInteractivity();
-        if (this.freeOrbitEnabled) {
+        // Gate on orbitControls.enabled, not just freeOrbitEnabled: during
+        // the fly-to-overview tween the controls are disabled and still hold
+        // the previous target, so letting them drive the camera here would
+        // yank the view off the tweened path (visible snap at tween end).
+        if (this.freeOrbitEnabled && this.orbitControls.enabled) {
+            this.updateFreeOrbitTarget();
             this.orbitControls.update();
             this.cameraTarget.copy(this.orbitControls.target);
         }
