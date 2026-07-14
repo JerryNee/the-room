@@ -1,63 +1,41 @@
-# Jerry's Room — Interactive 3D Portfolio
+# Jerry's Room
 
-[English](#jerrys-room--interactive-3d-portfolio) | [简体中文](#简体中文)
+This is the repository for my portfolio website, <a href="https://jerrynee-github-io.vercel.app"><samp>Jerry's Room</samp></a>. You arrive at a door floating in a bright void; open it and step into my room, where the display on the desk runs <samp>JianweiOS</samp> — a working desktop with my projects, resume, photo albums, music, and a word game inside.
 
-An interactive 3D portfolio. You arrive at a door floating in a bright void;
-open it and step into Jerry's room, where a Studio Display on the desk runs
-**JianweiOS** — a fully working retro-style desktop OS with my projects,
-resume, photo albums, music, and a word game inside.
+Both layers live in this one repo: the three.js scene is in <samp>src/outer/</samp>, and the React desktop that gets composited onto the monitor is in <samp>src/os/</samp>. Thanks for taking the time to check this out! If you have any questions or comments, feel free to shoot me an email at <samp><a href="mailto:nijianweijerry@gmail.com">nijianweijerry@gmail.com</a></samp> or find me on GitHub <a href="https://github.com/JerryNee"><samp>@JerryNee</samp></a>.
 
-**Live site:** deployed on Vercel from `main`.
+<br>
 
-## How it works
-
-- **Outer scene** (`src/outer/`) — a three.js room rendered with WebGL:
-  door-opening portal transition (stencil-based), free-orbit camera with
-  zoom-follow framing, baked lighting surfaces, and spatial audio.
-- **Inner OS** (`src/os/`) — a React 18 desktop that runs in an iframe and is
-  composited onto the monitor through CSS3D + a WebGL occlusion punch-out.
-  Mouse, wheel, and keyboard input are forwarded from the 3D scene into the
-  iframe while the screen is focused.
-- Apps on the desktop: My Showcase, Projects, Resume, Photos, Music Disk,
-  Jerryordle (Wordle with a Jerry twist), and Credits.
-
-## Development
+To setup a dev environment:
 
 ```bash
-npm install
-npm run dev        # local dev server
-npm run build      # production build to dist/
-npm run typecheck  # tsc --noEmit
+# Clone the repository
+
+# Install dependencies
+npm i
+
+# Run the local dev server
+npm run dev
 ```
 
-## Project structure
+To build for production:
 
+```bash
+# Type-check
+npm run typecheck
+
+# Build for production (outputs to dist/)
+npm run build
 ```
-src/outer/   three.js entry scene (door, room, monitor compositing)
-src/os/      JianweiOS — the React desktop inside the monitor
-public/      models (GLB), baked textures, licensed audio
-```
+
+<br>
 
 ## Credits
 
-- Computer model by Mickael Boitte; environment models by Sean Nicolas.
-- Office ambience by Sound Cassette; other audio licensed per
-  `docs/audio-assets.md`.
-- Inspiration: Bruno Simon, Jesse Zhou, Pink Yellow, Vivek Patel.
+Computer model by Mickael Boitte, environment models by Sean Nicolas, office ambience by Sound Cassette; other audio licensed per <samp>docs/audio-assets.md</samp>. Inspired by the work of Bruno Simon, Henry Heffernan, Jesse Zhou, Pink Yellow, and Vivek Patel.
 
-Content, 3D composition, JianweiOS apps, and all customization by
-**Jianwei (Jerry) Ni**.
+<br>
 
 ## 简体中文
 
-一个可交互的 3D 作品集:推开悬浮在光里的门,走进 Jerry 的房间,桌上的
-显示器运行着 **JianweiOS** —— 一个真正可用的复古桌面系统,里面有我的
-项目、简历、相册、音乐和猜词游戏。
-
-- 外层场景(`src/outer/`):three.js 房间,门口传送门过渡、自由环绕
-  相机、烘焙光照与空间音频;
-- 内层系统(`src/os/`):React 18 桌面,通过 CSS3D 合成到显示器屏幕,
-  聚焦屏幕后鼠标、滚轮、键盘事件都会转发进系统;
-- 开发:`npm install && npm run dev`,构建 `npm run build`。
-
-MIT 许可,资产致谢详见上方 Credits。
+这是我的作品集网站 <a href="https://jerrynee-github-io.vercel.app"><samp>Jerry's Room</samp></a> 的仓库:推开悬浮在光里的门,走进房间,桌上的显示器运行着 <samp>JianweiOS</samp> —— 一个真正可用的桌面系统。外层 three.js 场景在 <samp>src/outer/</samp>,内层 React 桌面在 <samp>src/os/</samp>。开发:<samp>npm i && npm run dev</samp>。有任何问题欢迎邮件联系。
