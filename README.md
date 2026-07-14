@@ -40,7 +40,6 @@ public/      models (GLB), baked textures, licensed audio
 
 ## Credits
 
-- Template base: [Corey Chiu](https://coreychiu.com) (MIT).
 - Computer model by Mickael Boitte; environment models by Sean Nicolas.
 - Office ambience by Sound Cassette; other audio licensed per
   `docs/audio-assets.md`.
@@ -61,4 +60,4 @@ Content, 3D composition, JianweiOS apps, and all customization by
   聚焦屏幕后鼠标、滚轮、键盘事件都会转发进系统;
 - 开发:`npm install && npm run dev`,构建 `npm run build`。
 
-MIT 许可,模板基底来自 Corey Chiu,详见上方 Credits。
+MIT 许可,资产致谢详见上方 Credits。
