@@ -1,4 +1,8 @@
-const WORDS = [
+import ADDITIONAL_WORDS from './AdditionalWords';
+
+// The original Jerryordle/Stanford GraphBase list stays intact as the base.
+// AdditionalWords broadens accepted guesses without becoming an answer pool.
+const BASE_WORDS = [
     'which',
     'there',
     'their',
@@ -5757,5 +5761,12 @@ const WORDS = [
     'biffy',
     'pupal',
 ];
+
+const WORDS = [...BASE_WORDS, ...ADDITIONAL_WORDS];
+
+export const VALID_GUESSES = new Set(WORDS);
+
+export const isValidGuess = (guess: string) =>
+    VALID_GUESSES.has(guess.toLowerCase());
 
 export default WORDS;

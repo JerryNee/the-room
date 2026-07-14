@@ -401,7 +401,7 @@ const styles: StyleSheetCSS = {
         borderRadius: 16,
         boxShadow:
             '0 28px 80px rgba(12, 18, 24, 0.22), 0 4px 18px rgba(12, 18, 24, 0.12)',
-        overflow: 'hidden',
+        overflow: 'clip',
         position: 'absolute',
         backdropFilter: 'blur(22px) saturate(1.18)',
         WebkitBackdropFilter: 'blur(22px) saturate(1.18)',

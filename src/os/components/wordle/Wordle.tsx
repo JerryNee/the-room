@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import WORDS from './Words';
+import { isValidGuess } from './Words';
 import { Easing } from '../general/Animation';
 
 export interface KeyboardLetterProps {
@@ -46,7 +46,7 @@ const KeyboardLetter: React.FC<KeyboardLetterProps> = ({
     const handleClick = () => {
         if (letter === 'RET') {
             if (currentGuess.length === word.length) {
-                if (WORDS.includes(currentGuess.toLowerCase())) {
+                if (isValidGuess(currentGuess)) {
                     setGuesses([...guesses, currentGuess]);
                     setCurrentGuess('');
                 }
@@ -144,7 +144,7 @@ const GuessWord: React.FC<GuessWordProps> = ({
             setSavedGuess(guess);
             if (
                 guess.length === word.length &&
-                !WORDS.includes(guess.toLowerCase())
+                !isValidGuess(guess)
             ) {
                 controls
                     .start({
@@ -236,7 +236,7 @@ const Wordle: React.FC<WordleProps> = () => {
                 setCurrentGuess(currentGuess.slice(0, -1));
             } else if (event.key === 'Enter') {
                 if (currentGuess.length === word.length) {
-                    if (WORDS.includes(currentGuess.toLowerCase())) {
+                    if (isValidGuess(currentGuess)) {
                         setGuesses([...guesses, currentGuess]);
                         setCurrentGuess('');
                     }
