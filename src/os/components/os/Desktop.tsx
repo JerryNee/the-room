@@ -1,11 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ShowcaseExplorer from '../applications/ShowcaseExplorer';
-import DoomShareware from '../applications/DoomShareware';
-import CommanderKeen from '../applications/CommanderKeen';
-import FreecivWeb from '../applications/FreecivWeb';
 import {
     AboutTxt,
-    AuthorizedGamesReadme,
     ContactCard,
     MusicDisk,
     PhotosFolder,
@@ -86,30 +82,6 @@ const APPLICATIONS: {
         name: 'Music Disk',
         shortcutIcon: 'musicDiskIcon',
         component: MusicDisk,
-    },
-    gamesReadme: {
-        key: 'gamesReadme',
-        name: 'GAMES-README.TXT',
-        shortcutIcon: 'textFileIcon',
-        component: AuthorizedGamesReadme,
-    },
-    doomShareware: {
-        key: 'doomShareware',
-        name: 'Doom Shareware',
-        shortcutIcon: 'doomSharewareIcon',
-        component: DoomShareware,
-    },
-    commanderKeen: {
-        key: 'commanderKeen',
-        name: 'Commander Keen',
-        shortcutIcon: 'keenIcon',
-        component: CommanderKeen,
-    },
-    freecivWeb: {
-        key: 'freecivWeb',
-        name: 'Freeciv Web',
-        shortcutIcon: 'freecivIcon',
-        component: FreecivWeb,
     },
     jianwordle: {
         key: 'jianwordle',

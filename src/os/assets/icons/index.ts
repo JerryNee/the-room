@@ -13,9 +13,6 @@ import pdfIcon from './pdfIcon.svg';
 import linkIcon from './linkIcon.svg';
 import photoIcon from './photoIcon.svg';
 import musicDiskIcon from './musicDiskIcon.svg';
-import doomSharewareIcon from './doomSharewareIcon.svg';
-import keenIcon from './keenIcon.svg';
-import freecivIcon from './freecivIcon.svg';
 import jianwordleIcon from './jianwordleIcon.png';
 import credits from './credits.png';
 import volumeOn from './volumeOn.png';
@@ -39,9 +36,6 @@ const icons = {
     linkIcon: linkIcon,
     photoIcon: photoIcon,
     musicDiskIcon: musicDiskIcon,
-    doomSharewareIcon: doomSharewareIcon,
-    keenIcon: keenIcon,
-    freecivIcon: freecivIcon,
     volumeOn: volumeOn,
     volumeOff: volumeOff,
     credits: credits,
