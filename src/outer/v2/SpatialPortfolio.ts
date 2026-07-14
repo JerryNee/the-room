@@ -149,7 +149,7 @@ const HUD_VOLUME_OFF_ICON_URL = '/textures/UI/volume_off.svg';
 const HUD_CAMERA_ICON_URL = '/textures/UI/camera.svg';
 const HUD_MOUSE_ICON_URL = '/textures/UI/mouse.svg';
 const ROOM_AMBIENCE_AUDIO_URL = '/audio/room/jerry-room-house-tone.mp3';
-const ROOM_STARTUP_AUDIO_URL = '/audio/startup/startup.mp3';
+const ROOM_STARTUP_AUDIO_URL = '/audio/startup/jerry-room-entry.mp3';
 const DOOR_OPEN_AUDIO_URL = '/audio/room/door-open-b-hard-cut-105.mp3';
 const THRESHOLD_WHOOSH_AUDIO_URL = '/audio/room/threshold-whoosh.mp3';
 const MONITOR_MOUSE_DOWN_AUDIO_URL = '/audio/mouse/mouse_down.mp3';
@@ -184,6 +184,33 @@ const PORTAL_RENDER_HEIGHT = Math.round(
 );
 const PORTAL_ASPECT = PORTAL_PLANE_WIDTH / PORTAL_PLANE_HEIGHT;
 const PORTAL_SOURCE_POSITION = new THREE.Vector3(0, 1.08, -0.082);
+// The logical portal camera stays centred at 1.08, but the binary stencil must
+// reach the floor. The old 2.04m mask stopped at y=0.06 and exposed a visible
+// strip of the cool CSS backdrop between the warm room and the light pool.
+const PORTAL_STENCIL_TOP_Y =
+    PORTAL_SOURCE_POSITION.y + PORTAL_PLANE_HEIGHT / 2;
+const PORTAL_STENCIL_BOTTOM_Y = 0;
+const PORTAL_STENCIL_HEIGHT = PORTAL_STENCIL_TOP_Y - PORTAL_STENCIL_BOTTOM_Y;
+const PORTAL_STENCIL_CENTER_Y =
+    (PORTAL_STENCIL_TOP_Y + PORTAL_STENCIL_BOTTOM_Y) / 2;
+// Horizontal pool of light the open doorway throws onto the entry-side
+// ground: doorway-wide at the threshold, fanning wider with distance with a
+// growing penumbra, so the floor reads as a gradient instead of the hard
+// cool-to-warm line where the stencil cuts the room floor.
+const DOOR_FLOOR_POOL_WIDTH = 5.2;
+const DOOR_FLOOR_POOL_DEPTH = 3.2;
+const DOOR_FLOOR_POOL_COLOR: [number, number, number] = [241, 241, 238];
+const DOOR_FLOOR_POOL_MAX_ALPHA = 1;
+const DOOR_FLOOR_POOL_SPREAD = 0.4;
+// Extend a few centimetres through the binary portal cut so MSAA/stencil edge
+// samples always land on the same warm colour as the room. The overlap fades
+// in before the threshold, stays solid just outside it, then becomes a pool.
+const DOOR_FLOOR_POOL_THRESHOLD_OVERLAP = 0.06;
+const DOOR_FLOOR_POOL_THRESHOLD_PLATEAU = 0.1;
+const DOOR_OPENING_HALF_WIDTH = 0.44;
+const DOOR_BAKED_SHADOW_OPACITY = 0.45;
+const DOOR_BAKED_SHADOW_OPEN_OPACITY = 0.22;
+const DOOR_BAKED_SHADOW_FADE_DURATION = 1050;
 const PORTAL_CROSSING_POSITION = new THREE.Vector3(0, 1.62, 0.08);
 const PORTAL_DESTINATION_POSITION = new THREE.Vector3(0, 1.9, 3.2);
 const PORTAL_DESTINATION_TARGET = CAMERA_POSES.room.target.clone();
@@ -282,6 +309,10 @@ export default class SpatialPortfolio {
     private portalFullscreenActive: boolean;
     private portalReleased: boolean;
     private entryDoorFadeTween: { stop: () => void } | null;
+    private doorFloorPoolMesh: THREE.Mesh | null;
+    private doorFloorPoolMaterial: THREE.MeshBasicMaterial | null;
+    private doorBakedShadowMesh: THREE.Mesh | null;
+    private doorBakedShadowMaterial: THREE.MeshBasicMaterial | null;
     private monitorCssObject: CSS3DObject | null;
     private monitorElement: HTMLDivElement | null;
     private monitorIframe: HTMLIFrameElement | null;
@@ -389,6 +420,10 @@ export default class SpatialPortfolio {
         this.portalFullscreenActive = false;
         this.portalReleased = false;
         this.entryDoorFadeTween = null;
+        this.doorFloorPoolMesh = null;
+        this.doorFloorPoolMaterial = null;
+        this.doorBakedShadowMesh = null;
+        this.doorBakedShadowMaterial = null;
         this.monitorCssObject = null;
         this.monitorElement = null;
         this.monitorIframe = null;
@@ -1381,7 +1416,7 @@ export default class SpatialPortfolio {
 
     private addEntryHall() {
         this.portalStencil = new THREE.Mesh(
-            new THREE.PlaneGeometry(PORTAL_PLANE_WIDTH, PORTAL_PLANE_HEIGHT),
+            new THREE.PlaneGeometry(PORTAL_PLANE_WIDTH, PORTAL_STENCIL_HEIGHT),
             new THREE.MeshBasicMaterial({
                 colorWrite: false,
                 depthWrite: false,
@@ -1394,6 +1429,7 @@ export default class SpatialPortfolio {
             })
         );
         this.portalStencil.position.copy(PORTAL_SOURCE_POSITION);
+        this.portalStencil.position.y = PORTAL_STENCIL_CENTER_Y;
         this.portalStencil.position.z += 0.007;
         this.portalStencil.renderOrder = -100;
         this.portalStencil.visible = false;
@@ -1579,6 +1615,12 @@ export default class SpatialPortfolio {
                     this.applyDoorAssetMaterial(child);
                 });
 
+                // Keep the threshold transition strictly on the ground. A
+                // vertical spill plane makes this isolated door read as if it
+                // were mounted in a wall instead of standing in the void.
+                const pool = this.createDoorFloorPool();
+                if (pool) modelRoot.add(pool);
+
                 this.scene.remove(this.entryDoorRoot);
                 this.entryDoorRoot = loadedRoot;
                 this.doorPivot = swing;
@@ -1593,6 +1635,111 @@ export default class SpatialPortfolio {
         );
     }
 
+    private createDoorFloorPool() {
+        const texture = this.makeDoorFloorPoolTexture();
+        if (!texture) return null;
+
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            toneMapped: false,
+        });
+        material.userData.entryBaseOpacity = 0;
+        material.userData.entryBaseTransparent = true;
+        this.doorFloorPoolMaterial = material;
+
+        const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(DOOR_FLOOR_POOL_WIDTH, DOOR_FLOOR_POOL_DEPTH),
+            material
+        );
+        mesh.name = 'DoorFloorLightPool';
+        mesh.rotation.x = -Math.PI / 2;
+        // Lies on the entry-side ground with a small overlap through the
+        // threshold. Drawn before the baked shadow so that shadow can still
+        // ground the closed door while the light pool is ramping in.
+        const nearEdge =
+            PORTAL_SOURCE_POSITION.z - DOOR_FLOOR_POOL_THRESHOLD_OVERLAP;
+        mesh.position.set(0, 0.0045, nearEdge + DOOR_FLOOR_POOL_DEPTH / 2);
+        mesh.renderOrder = -2;
+        mesh.raycast = () => {};
+        this.doorFloorPoolMesh = mesh;
+        return mesh;
+    }
+
+    private makeDoorFloorPoolTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+
+        const smoothstep = (edge0: number, edge1: number, value: number) => {
+            const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+            return t * t * (3 - 2 * t);
+        };
+
+        const [red, green, blue] = DOOR_FLOOR_POOL_COLOR;
+        const image = context.createImageData(canvas.width, canvas.height);
+        for (let py = 0; py < canvas.height; py++) {
+            for (let px = 0; px < canvas.width; px++) {
+                const x =
+                    (px / (canvas.width - 1) - 0.5) * DOOR_FLOOR_POOL_WIDTH;
+                // Canvas top maps (via flipY) to the edge just inside the
+                // portal after the -90° X rotation. z is signed distance from
+                // the threshold: negative in the overlap, positive outside.
+                const z =
+                    (py / (canvas.height - 1)) * DOOR_FLOOR_POOL_DEPTH -
+                    DOOR_FLOOR_POOL_THRESHOLD_OVERLAP;
+
+                // Light fans out from the doorway: doorway-wide at the
+                // threshold, wider and softer-edged with distance.
+                const exteriorDistance = Math.max(0, z);
+                const halfWidth =
+                    DOOR_OPENING_HALF_WIDTH +
+                    exteriorDistance * DOOR_FLOOR_POOL_SPREAD;
+                const penumbra = 0.1 + exteriorDistance * 0.2;
+                const lateral =
+                    1 -
+                    smoothstep(
+                        halfWidth - penumbra,
+                        halfWidth + penumbra,
+                        Math.abs(x)
+                    );
+                const forward =
+                    z < 0
+                        ? smoothstep(
+                              -DOOR_FLOOR_POOL_THRESHOLD_OVERLAP,
+                              0,
+                              z
+                          )
+                        : 1 -
+                          smoothstep(
+                              DOOR_FLOOR_POOL_THRESHOLD_PLATEAU,
+                              DOOR_FLOOR_POOL_DEPTH -
+                                  DOOR_FLOOR_POOL_THRESHOLD_OVERLAP,
+                              z
+                          );
+                const alpha =
+                    DOOR_FLOOR_POOL_MAX_ALPHA * lateral * forward;
+
+                const offset = (py * canvas.width + px) * 4;
+                image.data[offset] = red;
+                image.data[offset + 1] = green;
+                image.data[offset + 2] = blue;
+                image.data[offset + 3] = Math.round(alpha * 255);
+            }
+        }
+        context.putImageData(image, 0, 0);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        return texture;
+    }
+
     private configureDoorBakedShadow(mesh: THREE.Mesh) {
         if (!mesh.name.toLowerCase().includes('bakedshadow')) return false;
 
@@ -1602,18 +1749,26 @@ export default class SpatialPortfolio {
             this.renderer.capabilities.getMaxAnisotropy()
         );
 
-        mesh.material = new THREE.MeshBasicMaterial({
+        const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
+            // Baked against the old darker backdrop; at full strength it
+            // reads as a heavy grey slab in the current high-key entry.
+            opacity: DOOR_BAKED_SHADOW_OPACITY,
             depthWrite: false,
             depthTest: true,
             toneMapped: false,
             side: THREE.DoubleSide,
         });
+        material.userData.entryBaseOpacity = DOOR_BAKED_SHADOW_OPACITY;
+        material.userData.entryBaseTransparent = true;
+        mesh.material = material;
         mesh.castShadow = false;
         mesh.receiveShadow = false;
         mesh.renderOrder = -1;
         mesh.userData.hotspotKey = undefined;
+        this.doorBakedShadowMesh = mesh;
+        this.doorBakedShadowMaterial = material;
         return true;
     }
 
@@ -1776,24 +1931,34 @@ export default class SpatialPortfolio {
         }
 
         if (name.includes('frame')) {
+            // The room interior (~238) and door spill glow (~240) both bypass
+            // tone mapping, but the ACES shoulder caps a tone-mapped frame
+            // near ~230 no matter how light its albedo, leaving it as a grey
+            // outline ringing the doorway. Bypass tone mapping here too and
+            // pick the albedo so the lit face lands between its neighbours.
             mesh.material = new THREE.MeshPhysicalMaterial({
                 ...materialOptions,
-                color: 0xd9d6ce,
+                color: 0xa9a7a2,
                 metalness: 0,
                 roughness: 0.66,
                 clearcoat: 0.06,
                 clearcoatRoughness: 0.78,
+                toneMapped: false,
             });
             return;
         }
 
+        // Door panel: same brightness policy as the frame above — bypass tone
+        // mapping and calibrate the albedo against the measured lighting gain,
+        // otherwise the leaf reads as a grey slab inside the brightened frame.
         mesh.material = new THREE.MeshPhysicalMaterial({
             ...materialOptions,
-            color: 0xd1cec5,
+            color: 0xa6a49e,
             metalness: 0,
             roughness: 0.62,
             clearcoat: 0.08,
             clearcoatRoughness: 0.72,
+            toneMapped: false,
         });
     }
 
@@ -3031,6 +3196,7 @@ export default class SpatialPortfolio {
         window.addEventListener('mousemove', (event) => this.onPointerMove(event));
         window.addEventListener('click', () => this.onClick());
         window.addEventListener('keydown', (event) => this.onKeyDown(event));
+        window.addEventListener('keyup', (event) => this.onKeyUp(event));
         window.addEventListener('popstate', () => {
             if (this.focusedKey) this.returnToRoom(false);
         });
@@ -3071,6 +3237,15 @@ export default class SpatialPortfolio {
         if (this.handlePlacementKey(event)) return;
         this.playMonitorKeyboardSound(event);
 
+        // Escape always leaves the focused view; every other key belongs to
+        // the OS while its screen is interactive, so forward it into the
+        // iframe (the CSS3D-transformed frame never receives real focus, so
+        // its own keydown listeners never fire otherwise).
+        if (event.key !== 'Escape' && this.forwardMonitorKeyboardEvent(event)) {
+            event.preventDefault();
+            return;
+        }
+
         if (
             this.state === 'entry-door' &&
             this.doorReady &&
@@ -3081,6 +3256,46 @@ export default class SpatialPortfolio {
         if (event.key === 'Escape' && this.focusedKey) {
             this.returnToRoom();
         }
+    }
+
+    private onKeyUp(event: KeyboardEvent) {
+        if (event.key !== 'Escape' && this.forwardMonitorKeyboardEvent(event)) {
+            event.preventDefault();
+        }
+    }
+
+    private forwardMonitorKeyboardEvent(event: KeyboardEvent) {
+        if (
+            !this.monitorIframe?.contentDocument ||
+            !this.monitorIframe.contentWindow ||
+            !this.monitorInputProxyEl.classList.contains('is-visible')
+        ) {
+            return false;
+        }
+
+        const iframeDocument = this.monitorIframe.contentDocument;
+        const target =
+            iframeDocument.activeElement ||
+            iframeDocument.body ||
+            iframeDocument.documentElement;
+        if (!target) return false;
+
+        target.dispatchEvent(
+            new KeyboardEvent(event.type, {
+                bubbles: true,
+                cancelable: true,
+                view: this.monitorIframe.contentWindow,
+                key: event.key,
+                code: event.code,
+                location: event.location,
+                repeat: event.repeat,
+                altKey: event.altKey,
+                ctrlKey: event.ctrlKey,
+                metaKey: event.metaKey,
+                shiftKey: event.shiftKey,
+            })
+        );
+        return true;
     }
 
     private enablePlacementMode(target: THREE.Object3D, key: PlacementKey) {
@@ -3394,6 +3609,46 @@ export default class SpatialPortfolio {
             .easing(TWEEN.Easing.Cubic.InOut)
             .start();
 
+        if (this.doorFloorPoolMaterial) {
+            const poolState = {
+                opacity: this.doorFloorPoolMaterial.opacity,
+            };
+            new TWEEN.Tween(poolState)
+                .to({ opacity: 1 }, doorDuration)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onUpdate(() => {
+                    if (!this.doorFloorPoolMaterial) return;
+                    this.doorFloorPoolMaterial.opacity = poolState.opacity;
+                    this.doorFloorPoolMaterial.userData.entryBaseOpacity =
+                        poolState.opacity;
+                })
+                .start();
+        }
+
+        // Preserve a restrained contact shadow after the leaf swings open so
+        // the freestanding frame remains grounded in the void. The portal
+        // compositor draws it once across both sides of the threshold below.
+        if (this.doorBakedShadowMaterial) {
+            const shadowState = {
+                opacity: this.doorBakedShadowMaterial.opacity,
+            };
+            new TWEEN.Tween(shadowState)
+                .to(
+                    { opacity: DOOR_BAKED_SHADOW_OPEN_OPACITY },
+                    REDUCED_MOTION ? 1 : DOOR_BAKED_SHADOW_FADE_DURATION
+                )
+                .easing(TWEEN.Easing.Cubic.Out)
+                .onUpdate(() => {
+                    if (!this.doorBakedShadowMaterial) return;
+                    this.doorBakedShadowMaterial.opacity = shadowState.opacity;
+                    // setEntryDoorOpacity() runs again when the doorway fades;
+                    // keep its cached base in sync so it cannot restore 0.45.
+                    this.doorBakedShadowMaterial.userData.entryBaseOpacity =
+                        shadowState.opacity;
+                })
+                .start();
+        }
+
         window.setTimeout(
             () => {
                 this.moveCameraThroughDoor(cameraDuration, () => {
@@ -3623,7 +3878,14 @@ export default class SpatialPortfolio {
         targetCurve.updateArcLengths();
         const progress = { value: 0 };
         let portalReleased = false;
+        let entrySoundPlayed = false;
         const releaseAt = THRESHOLD_SWITCH_PROGRESS;
+        const playEntrySoundOnce = () => {
+            if (entrySoundPlayed) return;
+            entrySoundPlayed = true;
+            this.playThresholdCrossingSound();
+            this.playRoomArrivalSound();
+        };
 
         new TWEEN.Tween(progress)
             .to({ value: 1 }, duration)
@@ -3635,10 +3897,13 @@ export default class SpatialPortfolio {
                 this.camera.position.copy(positionCurve.getPointAt(value));
                 this.cameraTarget.copy(targetCurve.getPointAt(value));
 
+                if (this.camera.position.z <= PORTAL_CROSSING_POSITION.z) {
+                    playEntrySoundOnce();
+                }
+
                 if (value >= releaseAt) {
                     if (!portalReleased) {
-                        this.playThresholdCrossingSound();
-                        this.playRoomArrivalSound();
+                        playEntrySoundOnce();
                         this.portalStencil.visible = false;
                         this.portalSurface.visible = false;
                         this.setPortalPreviewMode(false);
@@ -3653,10 +3918,7 @@ export default class SpatialPortfolio {
                 }
             })
             .onComplete(() => {
-                if (!portalReleased) {
-                    this.playThresholdCrossingSound();
-                    this.playRoomArrivalSound();
-                }
+                playEntrySoundOnce();
                 this.portalStencil.visible = false;
                 this.portalSurface.visible = false;
                 this.setPortalPreviewMode(false);
@@ -4029,6 +4291,9 @@ export default class SpatialPortfolio {
         const previousPortalSurfaceVisibility = this.portalSurface.visible;
         const previousPortalStencilVisibility = this.portalStencil.visible;
         const previousPortalPreviewVisibility = this.portalPreviewGroup.visible;
+        const previousDoorFloorPoolVisibility = this.doorFloorPoolMesh?.visible;
+        const previousDoorBakedShadowVisibility =
+            this.doorBakedShadowMesh?.visible;
 
         this.renderer.autoClear = true;
 
@@ -4036,6 +4301,9 @@ export default class SpatialPortfolio {
         this.portalPreviewGroup.visible = false;
         this.portalStencil.visible = false;
         this.portalSurface.visible = false;
+        // Reserve the contact shadow for the final composite so it lands once
+        // across both the room floor and the exterior side of the threshold.
+        if (this.doorBakedShadowMesh) this.doorBakedShadowMesh.visible = false;
         this.renderer.render(this.scene, this.camera);
 
         this.renderer.autoClear = false;
@@ -4059,7 +4327,24 @@ export default class SpatialPortfolio {
         this.portalStencil.visible = false;
         this.portalSurface.visible = false;
         this.portalPreviewGroup.visible = false;
+        // The floor pool was already composited by the first pass. Keep it out
+        // of the door redraw, but restore the shadow so it bridges the portal
+        // cut instead of disappearing or becoming a one-sided dark stripe.
+        if (this.doorFloorPoolMesh) this.doorFloorPoolMesh.visible = false;
+        if (
+            this.doorBakedShadowMesh &&
+            previousDoorBakedShadowVisibility !== undefined
+        ) {
+            this.doorBakedShadowMesh.visible =
+                previousDoorBakedShadowVisibility;
+        }
         this.renderer.render(this.scene, this.camera);
+        if (
+            this.doorFloorPoolMesh &&
+            previousDoorFloorPoolVisibility !== undefined
+        ) {
+            this.doorFloorPoolMesh.visible = previousDoorFloorPoolVisibility;
+        }
 
         this.renderer.autoClear = previousAutoClear;
         this.roomGroup.visible = previousRoomVisibility;

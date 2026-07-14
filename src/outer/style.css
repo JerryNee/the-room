@@ -8,13 +8,14 @@ body {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    /* A nearly uniform neutral void. Keep the centre matched to the room, but
+       avoid the high-contrast side falloff that reads as a lit wall. */
     background:
         radial-gradient(
-            ellipse at 50% 54%,
-            #fbfaf7 0%,
-            #efeee9 28%,
-            #d2d2cf 66%,
-            #9d9f9f 100%
+            ellipse 125% 105% at 50% 50%,
+            #f1f1ee 0%,
+            #eeefed 58%,
+            #e9ebeb 100%
         );
     color: #172123;
     font-family:
