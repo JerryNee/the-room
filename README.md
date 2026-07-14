@@ -1,229 +1,64 @@
-# SCLS AI Camp - Mini Project 1: Personal Portfolio
+# Jerry's Room — Interactive 3D Portfolio
 
-[English](README.md) | [简体中文](README.md#readme-中文)
+[English](#jerrys-room--interactive-3d-portfolio) | [简体中文](#简体中文)
 
-This is Mini Project 1 for SCLS AI Camp students, based on the excellent portfolio template originally created by [Corey Chiu](https://coreychiu.com). This template has been adapted for educational purposes to help students learn web development, Git workflows, and deployment practices.
+An interactive 3D portfolio. You arrive at a door floating in a bright void;
+open it and step into Jerry's room, where a Studio Display on the desk runs
+**JianweiOS** — a fully working retro-style desktop OS with my projects,
+resume, photo albums, music, and a word game inside.
 
-## Original Credit
-This template was created by Corey Chiu. Check out his work at [coreychiu.com](https://coreychiu.com)
+**Live site:** deployed on Vercel from `main`.
 
-## Quick Start
+## How it works
 
-### Prerequisites
-- Basic understanding of Git
-- Node.js installed on your computer
-- GitHub account
+- **Outer scene** (`src/outer/`) — a three.js room rendered with WebGL:
+  door-opening portal transition (stencil-based), free-orbit camera with
+  zoom-follow framing, baked lighting surfaces, and spatial audio.
+- **Inner OS** (`src/os/`) — a React 18 desktop that runs in an iframe and is
+  composited onto the monitor through CSS3D + a WebGL occlusion punch-out.
+  Mouse, wheel, and keyboard input are forwarded from the 3D scene into the
+  iframe while the screen is focused.
+- Apps on the desktop: My Showcase, Projects, Resume, Photos, Music Disk,
+  Jerryordle (Wordle with a Jerry twist), and Credits.
 
-### Development
-1. Fork this repository to your GitHub account:
-   - Click the "Fork" button at the top right of this page
-   - Select your GitHub account as the destination
+## Development
 
-2. Clone your forked repository:
 ```bash
-git clone git@github.com:YOUR_USERNAME/MP1.git
-cd MP1
+npm install
+npm run dev        # local dev server
+npm run build      # production build to dist/
+npm run typecheck  # tsc --noEmit
 ```
 
-3. Install dependencies:
-```bash
-pnpm install
+## Project structure
+
+```
+src/outer/   three.js entry scene (door, room, monitor compositing)
+src/os/      JianweiOS — the React desktop inside the monitor
+public/      models (GLB), baked textures, licensed audio
 ```
 
-4. Create and configure your `.env.local`:
-```bash
-cp .env.example .env.local
-```
+## Credits
 
-5. Start the development server:
-```bash
-pnpm dev
-```
+- Template base: [Corey Chiu](https://coreychiu.com) (MIT).
+- Computer model by Mickael Boitte; environment models by Sean Nicolas.
+- Office ambience by Sound Cassette; other audio licensed per
+  `docs/audio-assets.md`.
+- Inspiration: Bruno Simon, Jesse Zhou, Pink Yellow, Vivek Patel.
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser to see your portfolio
+Content, 3D composition, JianweiOS apps, and all customization by
+**Jianwei (Jerry) Ni**.
 
-### Deployment
-The easiest way to deploy your portfolio is using [Vercel](https://vercel.com):
+## 简体中文
 
-1. Create an account on [Vercel](https://vercel.com)
-2. Click the button below to deploy:
+一个可交互的 3D 作品集:推开悬浮在光里的门,走进 Jerry 的房间,桌上的
+显示器运行着 **JianweiOS** —— 一个真正可用的复古桌面系统,里面有我的
+项目、简历、相册、音乐和猜词游戏。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/SCLS-AI-Camp/MP1)
+- 外层场景(`src/outer/`):three.js 房间,门口传送门过渡、自由环绕
+  相机、烘焙光照与空间音频;
+- 内层系统(`src/os/`):React 18 桌面,通过 CSS3D 合成到显示器屏幕,
+  聚焦屏幕后鼠标、滚轮、键盘事件都会转发进系统;
+- 开发:`npm install && npm run dev`,构建 `npm run build`。
 
-3. Follow Vercel's instructions to complete the deployment
-
-## Features
-- 🎨 Beautifully designed UI using TailwindCSS, MagicUI, and Shadcn/UI
-- 📱 Responsive layout
-- 🌙 Light/Dark Mode
-- 📊 Github Calendar & Contribution Snake
-- 💻 Tech Icon Cloud
-- 🐦 Tweet Grid
-- 👥 Visitor Counter
-- 📝 Blog Section with MDX and Markdown support
-- 📰 RSS Feed
-- 📈 Web Analytics support (Google Analytics, OpenPanel Analytics, Plausible Analytics)
-
-## Tech Stack
-- Next.js
-- TailwindCSS
-- Shadcn/UI
-- MagicUI
-- Phosphor Icons
-
-## Configuration Guide
-After getting your site running, you can customize it by modifying these files:
-
-### Configuration Files
-- `.env.local` - Environment variables
-- `src/config/siteConfig.ts` - Site configuration
-- `src/config/infoConfig.ts` - Personal information
-- `src/config/*.ts` - Section-specific configurations
-- `src/content/blog/**.mdx` - Blog content
-- `public/github-contribution-snake/*.svg` - GitHub contribution visualization
-
-## Need Help?
-- Watch the tutorial videos provided in the AI Camp course
-- Ask questions during class sessions
-
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-# SCLS AI Camp - Mini Project 1：个人作品集 <a name="readme-中文"></a>
-
-[English](README.md) | [简体中文](README.md#readme-中文)
-
-这是 SCLS AI Camp 的第一个迷你项目，基于 [Corey Chiu](https://coreychiu.com) 创建的优秀作品集模板。我们已经针对教育目的对其进行了调整，帮助学生学习网页开发、Git 工作流程和部署实践。
-
-## 原作者致谢
-本模板由 Corey Chiu 创建。查看他的作品：[coreychiu.com](https://coreychiu.com)
-
-## 快速开始
-
-### 前置要求
-- 基本的 Git 知识
-- 电脑上已安装 Node.js和pnpm
-- GitHub 账号
-
-### 开发步骤
-1. Fork 这个仓库到你的 GitHub 账号：
-   - 点击页面右上角的 "Fork" 按钮
-   - 选择你的 GitHub 账号作为目标
-
-2. 克隆你 fork 的仓库：
-```bash
-git clone git@github.com:你的用户名/MP1.git
-cd MP1
-```
-
-3. 安装依赖：
-```bash
-pnpm install
-```
-
-4. 创建并配置 `.env.local`：
-```bash
-cp .env.example .env.local
-```
-
-5. 启动开发服务器：
-```bash
-pnpm dev
-```
-
-6. 在浏览器中打开 [http://localhost:3000](http://localhost:3000) 查看你的作品集
-
-### 部署
-使用 [Vercel](https://vercel.com) 是部署你的作品集最简单的方式：
-
-1. 在 [Vercel](https://vercel.com) 创建账号
-2. 点击下面的按钮开始部署：
-
-[![使用 Vercel 部署](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/SCLS-AI-Camp/MP1)
-
-3. 按照 Vercel 的说明完成部署
-
-## 功能特点
-- 🎨 使用 TailwindCSS、MagicUI 和 Shadcn/UI 设计的精美界面
-- 📱 响应式布局
-- 🌙 明暗主题模式
-- 📊 GitHub 贡献日历和贡献蛇形图
-- 💻 技术图标云
-- 🐦 推文展示
-- 👥 访客计数器
-- 📝 支持 MDX 和 Markdown 的博客部分
-- 📰 RSS 订阅
-- 📈 网站分析支持（Google Analytics、OpenPanel Analytics、Plausible Analytics）
-
-## 技术栈
-- Next.js
-- TailwindCSS
-- Shadcn/UI
-- MagicUI
-- Phosphor Icons
-
-## 配置指南
-在网站运行之后，你可以通过修改这些文件来自定义你的网站：
-
-### 配置文件
-- `.env.local` - 环境变量
-- `src/config/siteConfig.ts` - 网站配置
-- `src/config/infoConfig.ts` - 个人信息
-- `src/config/*.ts` - 各部分的具体配置
-- `src/content/blog/**.mdx` - 博客内容
-- `public/github-contribution-snake/*.svg` - GitHub 贡献可视化
-
-## 需要帮助？
-- 观看 AI Camp 课程提供的教学视频
-- 在课堂上提出问题
-
-## 许可证
-本项目基于 MIT 许可证 - 查看 LICENSE 文件了解详情
-# SCLS AI Camp - Mini Project 1: Personal Portfolio
-
-This is Mini Project 1 for SCLS AI Camp students, based on the excellent portfolio template originally created by [Corey Chiu](https://coreychiu.com). This template has been adapted for educational purposes to help students learn web development, Git workflows, and deployment practices.
-
-## Original Credit
-This template was created by Corey Chiu. Check out his work at [coreychiu.com](https://coreychiu.com)
-
-## Features
-- 🎨 Beautifully designed UI using TailwindCSS, MagicUI, and Shadcn/UI
-- 📱 Responsive layout
-- 🌙 Light/Dark Mode
-- 📊 Github Calendar & Contribution Snake
-- 💻 Tech Icon Cloud
-- 🐦 Tweet Grid
-- 👥 Visitor Counter
-- 📝 Blog Section with MDX and Markdown support
-- 📰 RSS Feed
-- 📈 Web Analytics support (Google Analytics, OpenPanel Analytics, Plausible Analytics)
-
-## Tech Stack
-- Next.js
-- TailwindCSS
-- Shadcn/UI
-- MagicUI
-- Phosphor Icons
-
-## Getting Started
-
-### Prerequisites
-- Basic understanding of Git
-- Node.js installed on your computer
-- GitHub account
-
-### Configuration Files
-- `.env.local` - Environment variables
-- `src/config/siteConfig.ts` - Site configuration
-- `src/config/infoConfig.ts` - Personal information
-- `src/config/*.ts` - Section-specific configurations
-- `src/content/blog/**.mdx` - Blog content
-- `public/github-contribution-snake/*.svg` - GitHub contribution visualization
-
-### Development
-1. Clone the repository:
-```bash
-git clone [your-forked-repo-url]
-
+MIT 许可,模板基底来自 Corey Chiu,详见上方 Credits。
