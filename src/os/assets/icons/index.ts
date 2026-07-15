@@ -13,6 +13,7 @@ import pdfIcon from './pdfIcon.svg';
 import linkIcon from './linkIcon.svg';
 import photoIcon from './photoIcon.svg';
 import musicDiskIcon from './musicDiskIcon.svg';
+import gameTrackerIcon from './gameTrackerIcon.svg';
 import jianwordleIcon from './jianwordleIcon.png';
 import credits from './credits.png';
 import volumeOn from './volumeOn.png';
@@ -36,6 +37,7 @@ const icons = {
     linkIcon: linkIcon,
     photoIcon: photoIcon,
     musicDiskIcon: musicDiskIcon,
+    gameTrackerIcon: gameTrackerIcon,
     volumeOn: volumeOn,
     volumeOff: volumeOff,
     credits: credits,

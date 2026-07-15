@@ -11,6 +11,7 @@ import {
     ThisComputer,
 } from '../applications/DesktopFiles';
 import ShutdownSequence from './ShutdownSequence';
+import GameTracker from '../applications/GameTracker';
 import Jianwordle from '../applications/Jianwordle';
 import Toolbar from './Toolbar';
 import DesktopShortcut, { DesktopShortcutProps } from './DesktopShortcut';
@@ -82,6 +83,12 @@ const APPLICATIONS: {
         name: 'Music Disk',
         shortcutIcon: 'musicDiskIcon',
         component: MusicDisk,
+    },
+    gameTracker: {
+        key: 'gameTracker',
+        name: 'Game Tracker',
+        shortcutIcon: 'gameTrackerIcon',
+        component: GameTracker,
     },
     jianwordle: {
         key: 'jianwordle',
