@@ -18,6 +18,7 @@ import edgeUnmastered from '../../assets/audio/edge_unmastered.mp3';
 import dnbDropDrums from '../../assets/audio/dnb_drop_drums.mp3';
 import breakBeat from '../../assets/audio/break.mp3';
 import lakeYamanakaFirstLight from '../../assets/pictures/lake-yamanaka-first-light-2025.jpg';
+import winterParkSnowboard from '../../assets/pictures/winter-park-snowboard-2025.jpg';
 import ujiTorii from '../../assets/pictures/uji-torii-2024.jpg';
 import ujiMatchaDessert from '../../assets/pictures/uji-matcha-dessert-2024.jpg';
 import ujiRedBench from '../../assets/pictures/uji-red-bench-2024.jpg';
@@ -128,6 +129,22 @@ const PHOTO_ALBUMS: PhotoAlbum[] = [
             'The era of keynote surprises, product idealists, and “one more thing” seems farther away every year.',
             'But at least we were there to see it shine at its brightest.',
         ],
+    },
+    {
+        id: 'powder-day-at-winter-park',
+        title: 'Powder Day at Winter Park',
+        date: 'Winter Park, Colorado · March 15, 2025',
+        cover: {
+            src: winterParkSnowboard,
+            alt: 'A snowboarder in black gear resting in the snow at Winter Park',
+        },
+        photos: [
+            {
+                src: winterParkSnowboard,
+                alt: 'A snowboarder in black gear resting in the snow at Winter Park',
+            },
+        ],
+        description: ['🏂'],
     },
     {
         id: 'first-light-of-2025',
