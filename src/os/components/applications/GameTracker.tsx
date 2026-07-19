@@ -1,18 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Window from '../os/Window';
-import GAMES, { GameStatus, STATUS_LABELS } from '../gametracker/games';
+import GAMES, {
+    GameEntry,
+    GameStatus,
+    STATUS_LABELS,
+} from '../gametracker/games';
+import './GameTracker.css';
 
 export interface GameTrackerProps extends WindowAppProps {}
 
 type Filter = GameStatus | 'all';
-
-const STATUS_COLORS: Record<GameStatus, { fg: string; bg: string }> = {
-    playing: { fg: '#1d6b43', bg: 'rgba(126, 200, 169, 0.28)' },
-    completed: { fg: '#2b5c8a', bg: 'rgba(90, 155, 212, 0.24)' },
-    'on-hold': { fg: '#8a6420', bg: 'rgba(232, 176, 75, 0.26)' },
-    dropped: { fg: '#8a3d3d', bg: 'rgba(212, 122, 122, 0.24)' },
-    backlog: { fg: '#555f66', bg: 'rgba(120, 132, 140, 0.18)' },
-};
 
 const FILTERS: Filter[] = [
     'all',
@@ -23,8 +20,19 @@ const FILTERS: Filter[] = [
     'backlog',
 ];
 
+const GAMES_PER_SHELF = 6;
+
+const groupIntoShelves = (games: GameEntry[]) => {
+    const shelves: GameEntry[][] = [];
+    for (let index = 0; index < games.length; index += GAMES_PER_SHELF) {
+        shelves.push(games.slice(index, index + GAMES_PER_SHELF));
+    }
+    return shelves;
+};
+
 const GameTracker: React.FC<GameTrackerProps> = (props) => {
     const [filter, setFilter] = useState<Filter>('all');
+    const [selectedGame, setSelectedGame] = useState<GameEntry | null>(null);
 
     const games = useMemo(
         () =>
@@ -38,205 +46,183 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
         [games, filter]
     );
 
-    const completed = games.filter((g) => g.status === 'completed').length;
-    const totalHours = games.reduce((sum, g) => sum + (g.hours ?? 0), 0);
+    const shelves = useMemo(() => groupIntoShelves(shown), [shown]);
 
     const countFor = (f: Filter) =>
         f === 'all' ? games.length : games.filter((g) => g.status === f).length;
 
+    useEffect(() => {
+        if (!selectedGame) return;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setSelectedGame(null);
+        };
+        window.addEventListener('keydown', closeOnEscape);
+        return () => window.removeEventListener('keydown', closeOnEscape);
+    }, [selectedGame]);
+
+    useEffect(() => {
+        if (
+            selectedGame &&
+            filter !== 'all' &&
+            selectedGame.status !== filter
+        ) {
+            setSelectedGame(null);
+        }
+    }, [filter, selectedGame]);
+
     return (
         <Window
             top={36}
-            left={150}
-            width={780}
-            height={600}
+            left={120}
+            width={960}
+            height={650}
             windowBarIcon="windowGameIcon"
             windowTitle="Game Tracker"
             closeWindow={props.onClose}
             onInteract={props.onInteract}
             minimizeWindow={props.onMinimize}
-            bottomLeftText={`${games.length} games tracked`}
+            bottomLeftText={`${games.length} games on the shelf`}
         >
-            <div style={styles.page}>
-                <h2 style={styles.title}>Game Tracker</h2>
-                <p style={styles.stats}>
-                    {games.length} games · {completed} completed ·{' '}
-                    {totalHours.toLocaleString()} hours logged
-                </p>
+            <div className="game-library">
+                <header className="game-library__header">
+                    <div>
+                        <h2>Game Shelf</h2>
+                        <p>
+                            {games.length} games collected · select a cover to open
+                            its case
+                        </p>
+                    </div>
 
-                <div style={styles.filterRow}>
-                    {FILTERS.map((f) => (
-                        <button
-                            key={f}
-                            onMouseDown={() => setFilter(f)}
-                            style={{
-                                ...styles.filterButton,
-                                ...(filter === f ? styles.filterButtonActive : {}),
-                            }}
+                    <div
+                        className="game-library__filters"
+                        role="group"
+                        aria-label="Filter game shelf by status"
+                    >
+                        {FILTERS.map((filterOption) => (
+                            <button
+                                key={filterOption}
+                                type="button"
+                                aria-pressed={filter === filterOption}
+                                onClick={() => setFilter(filterOption)}
+                            >
+                                {filterOption === 'all'
+                                    ? 'All'
+                                    : STATUS_LABELS[filterOption]}
+                                <span>{countFor(filterOption)}</span>
+                            </button>
+                        ))}
+                    </div>
+                </header>
+
+                <main className="game-library__scroll">
+                    {shelves.map((shelf, shelfIndex) => (
+                        <section
+                            className="game-shelf"
+                            aria-label={`Game shelf ${shelfIndex + 1}`}
+                            key={`${filter}-${shelfIndex}`}
                         >
-                            {f === 'all' ? 'All' : STATUS_LABELS[f]} · {countFor(f)}
-                        </button>
-                    ))}
-                </div>
-
-                <div style={styles.list}>
-                    {shown.map((game) => {
-                        const color = STATUS_COLORS[game.status];
-                        return (
-                            <div key={game.title} style={styles.row}>
-                                <div style={styles.rowHeader}>
-                                    <span style={styles.gameTitle}>{game.title}</span>
-                                    <span
-                                        style={{
-                                            ...styles.statusBadge,
-                                            color: color.fg,
-                                            background: color.bg,
-                                        }}
+                            <div className="game-shelf__games">
+                                {shelf.map((game) => (
+                                    <button
+                                        className="game-case"
+                                        data-status={game.status}
+                                        key={game.title}
+                                        onClick={() => setSelectedGame(game)}
+                                        type="button"
                                     >
-                                        {STATUS_LABELS[game.status]}
-                                    </span>
-                                </div>
-                                <div style={styles.metaRow}>
-                                    <span style={styles.metaChip}>{game.platform}</span>
-                                    {game.year !== undefined && (
-                                        <span style={styles.metaChip}>{game.year}</span>
-                                    )}
-                                    {game.hours !== undefined && (
-                                        <span style={styles.metaChip}>{game.hours}h</span>
-                                    )}
-                                    {game.rating !== undefined && (
-                                        <span style={styles.rating}>
-                                            {'★'.repeat(Math.round(game.rating / 2))}
-                                            {'☆'.repeat(5 - Math.round(game.rating / 2))}{' '}
-                                            {game.rating}/10
+                                        <span className="game-case__cover">
+                                            <img
+                                                alt={`${game.title} cover art`}
+                                                decoding="async"
+                                                draggable={false}
+                                                loading={
+                                                    shelfIndex === 0
+                                                        ? 'eager'
+                                                        : 'lazy'
+                                                }
+                                                src={game.cover}
+                                            />
+                                            <span
+                                                className="game-case__status-dot"
+                                                aria-hidden="true"
+                                            />
                                         </span>
-                                    )}
-                                </div>
-                                {game.notes && <p style={styles.notes}>{game.notes}</p>}
+                                        <span className="game-case__caption">
+                                            <strong>{game.title}</strong>
+                                            <span>
+                                                {game.platform} ·{' '}
+                                                {STATUS_LABELS[game.status]}
+                                            </span>
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
-                        );
-                    })}
+                            <div className="game-shelf__ledge" aria-hidden="true" />
+                        </section>
+                    ))}
+
                     {shown.length === 0 && (
-                        <p style={styles.empty}>Nothing here yet.</p>
+                        <p className="game-library__empty">Nothing on this shelf yet.</p>
                     )}
-                </div>
+                </main>
+
+                {selectedGame && (
+                    <aside
+                        className="game-inspector"
+                        aria-label={`Details for ${selectedGame.title}`}
+                    >
+                        <button
+                            className="game-inspector__close"
+                            type="button"
+                            aria-label="Close game details"
+                            onClick={() => setSelectedGame(null)}
+                        >
+                            ×
+                        </button>
+                        <img
+                            className="game-inspector__cover"
+                            alt={`${selectedGame.title} cover art`}
+                            decoding="async"
+                            src={selectedGame.cover}
+                        />
+                        <div className="game-inspector__copy">
+                            <span
+                                className="game-inspector__status"
+                                data-status={selectedGame.status}
+                            >
+                                {STATUS_LABELS[selectedGame.status]}
+                            </span>
+                            <h3>{selectedGame.title}</h3>
+                            <p className="game-inspector__metadata">
+                                {[selectedGame.platform, selectedGame.year]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                            </p>
+                            {selectedGame.notes && (
+                                <p className="game-inspector__notes">
+                                    {selectedGame.notes}
+                                </p>
+                            )}
+                            <dl className="game-inspector__facts">
+                                {selectedGame.hours !== undefined && (
+                                    <div>
+                                        <dt>Played</dt>
+                                        <dd>{selectedGame.hours} hours</dd>
+                                    </div>
+                                )}
+                                {selectedGame.rating !== undefined && (
+                                    <div>
+                                        <dt>Rating</dt>
+                                        <dd>{selectedGame.rating}/10</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </div>
+                    </aside>
+                )}
             </div>
         </Window>
     );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-    page: {
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        padding: 24,
-        boxSizing: 'border-box',
-        overflow: 'auto',
-        background:
-            'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,249,252,0.9))',
-        color: '#172123',
-        fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
-    },
-    title: {
-        fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
-        fontSize: 26,
-        fontWeight: 760,
-        lineHeight: 1.1,
-        margin: 0,
-    },
-    stats: {
-        color: 'rgba(23, 33, 35, 0.62)',
-        fontSize: 13,
-        margin: 0,
-    },
-    filterRow: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 6,
-    },
-    filterButton: {
-        border: '1px solid rgba(23, 33, 35, 0.14)',
-        borderRadius: 999,
-        background: 'rgba(255, 255, 255, 0.8)',
-        color: 'rgba(23, 33, 35, 0.72)',
-        cursor: 'pointer',
-        font: 'inherit',
-        fontSize: 12,
-        fontWeight: 600,
-        lineHeight: 1,
-        padding: '7px 11px',
-    },
-    filterButtonActive: {
-        background: '#172123',
-        borderColor: '#172123',
-        color: '#f5f7f8',
-    },
-    list: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-    },
-    row: {
-        border: '1px solid rgba(23, 33, 35, 0.1)',
-        borderRadius: 12,
-        background: 'rgba(255, 255, 255, 0.75)',
-        padding: '12px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-    },
-    rowHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    gameTitle: {
-        fontSize: 15,
-        fontWeight: 700,
-    },
-    statusBadge: {
-        borderRadius: 999,
-        flexShrink: 0,
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.02em',
-        padding: '4px 9px',
-    },
-    metaRow: {
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 6,
-    },
-    metaChip: {
-        border: '1px solid rgba(23, 33, 35, 0.12)',
-        borderRadius: 6,
-        color: 'rgba(23, 33, 35, 0.66)',
-        fontSize: 11,
-        fontWeight: 600,
-        padding: '2px 7px',
-    },
-    rating: {
-        color: '#8a6420',
-        fontSize: 12,
-        fontWeight: 600,
-    },
-    notes: {
-        color: 'rgba(23, 33, 35, 0.6)',
-        fontSize: 13,
-        lineHeight: 1.45,
-        margin: 0,
-    },
-    empty: {
-        color: 'rgba(23, 33, 35, 0.5)',
-        fontSize: 13,
-    },
 };
 
 export default GameTracker;

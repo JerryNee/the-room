@@ -1,5 +1,12 @@
-// Game Tracker data. Add every game you've played as one entry here —
-// the app renders whatever is in this list, newest `year` first.
+import baldursGate3Cover from '../../assets/game-covers/baldurs-gate-3.jpg';
+import cyberpunk2077Cover from '../../assets/game-covers/cyberpunk-2077.jpg';
+import eldenRingCover from '../../assets/game-covers/elden-ring.jpg';
+import hadesCover from '../../assets/game-covers/hades.jpg';
+import stardewValleyCover from '../../assets/game-covers/stardew-valley.jpg';
+import zeldaBreathOfTheWildCover from '../../assets/game-covers/zelda-breath-of-the-wild.jpg';
+
+// Game Tracker data. Add every game you've played as one entry here.
+// Cover art is the primary library view; the other fields appear on selection.
 // The entries below are SAMPLES: replace them with your own history.
 
 export type GameStatus =
@@ -11,6 +18,7 @@ export type GameStatus =
 
 export interface GameEntry {
     title: string;
+    cover: string;
     platform: string;
     status: GameStatus;
     /** 1-10 */
@@ -34,6 +42,7 @@ export const STATUS_LABELS: Record<GameStatus, string> = {
 const GAMES: GameEntry[] = [
     {
         title: 'The Legend of Zelda: Breath of the Wild',
+        cover: zeldaBreathOfTheWildCover,
         platform: 'Switch',
         status: 'completed',
         rating: 10,
@@ -43,6 +52,7 @@ const GAMES: GameEntry[] = [
     },
     {
         title: 'Elden Ring',
+        cover: eldenRingCover,
         platform: 'PC',
         status: 'playing',
         rating: 9,
@@ -52,6 +62,7 @@ const GAMES: GameEntry[] = [
     },
     {
         title: 'Hades',
+        cover: hadesCover,
         platform: 'PC',
         status: 'completed',
         rating: 9,
@@ -61,6 +72,7 @@ const GAMES: GameEntry[] = [
     },
     {
         title: 'Stardew Valley',
+        cover: stardewValleyCover,
         platform: 'PC',
         status: 'on-hold',
         rating: 8,
@@ -70,6 +82,7 @@ const GAMES: GameEntry[] = [
     },
     {
         title: "Baldur's Gate 3",
+        cover: baldursGate3Cover,
         platform: 'PC',
         status: 'backlog',
         year: 2025,
@@ -77,6 +90,7 @@ const GAMES: GameEntry[] = [
     },
     {
         title: 'Cyberpunk 2077',
+        cover: cyberpunk2077Cover,
         platform: 'PC',
         status: 'dropped',
         rating: 6,
