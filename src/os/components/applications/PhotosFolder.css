@@ -32,11 +32,13 @@
 }
 
 .photos-library-header {
-    align-items: baseline;
+    align-items: center;
     display: flex;
     flex-shrink: 0;
     gap: 12px;
     justify-content: space-between;
+    row-gap: 10px;
+    flex-wrap: wrap;
 }
 
 .photos-library-header h2,
@@ -52,12 +54,74 @@
     text-wrap: balance;
 }
 
-.photos-library-header p {
+.photos-library-tools {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.photos-album-count {
     color: var(--photos-secondary);
     flex-shrink: 0;
     font-size: 0.875rem;
     line-height: 1.4;
-    margin: 0;
+}
+
+.photos-sort-control {
+    align-items: center;
+    background: #e8edf2;
+    border: 1px solid rgb(23 33 35 / 0.1);
+    border-radius: 9px;
+    display: inline-flex;
+    gap: 1px;
+    padding: 2px;
+}
+
+.photos-sort-button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: #52606d;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 650;
+    line-height: 1;
+    min-height: 28px;
+    padding: 6px 9px;
+    transition:
+        background-color 140ms ease-out,
+        color 140ms ease-out,
+        transform 100ms ease-out;
+}
+
+.photos-sort-button[aria-pressed='true'] {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgb(23 33 35 / 0.18);
+    color: var(--photos-ink);
+}
+
+.photos-sort-button:hover:not([aria-pressed='true']) {
+    background: rgb(255 255 255 / 0.56);
+    color: #2f3b45;
+}
+
+.photos-sort-button:active {
+    transform: scale(0.97);
+}
+
+.photos-sort-button:focus {
+    outline: none;
+}
+
+.photos-sort-button:focus-visible {
+    outline: 3px solid rgb(0 122 255 / 0.7);
+    outline-offset: 2px;
 }
 
 .photos-album-list {
@@ -553,6 +617,12 @@
 }
 
 @media (pointer: coarse) {
+    .photos-sort-button {
+        min-height: 40px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
     .photos-back-button {
         min-height: 44px;
         padding-left: 12px;
@@ -579,7 +649,8 @@
     .photos-back-button,
     .photos-detail-photo-button img,
     .photos-lightbox-close,
-    .photos-lightbox-nav {
+    .photos-lightbox-nav,
+    .photos-sort-button {
         transition-duration: 0.01ms;
     }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Window from '../os/Window';
 import MusicPlayer from '../general/MusicPlayer';
 import './PhotosFolder.css';
@@ -19,6 +19,14 @@ import dnbDropDrums from '../../assets/audio/dnb_drop_drums.mp3';
 import breakBeat from '../../assets/audio/break.mp3';
 import lakeYamanakaFirstLight from '../../assets/pictures/lake-yamanaka-first-light-2025.jpg';
 import winterParkSnowboard from '../../assets/pictures/winter-park-snowboard-2025.jpg';
+import fujiQSwingMountFuji from '../../assets/pictures/fuji-q-swing-mount-fuji-2025.jpg';
+import fujiQCoasterMountFuji from '../../assets/pictures/fuji-q-coaster-mount-fuji-2025.jpg';
+import fujiQHauntedHospitalSkulls from '../../assets/pictures/fuji-q-haunted-hospital-skulls-2025.jpg';
+import fujiQJikyuHospitalCharm from '../../assets/pictures/fuji-q-jikyu-hospital-charm-2025.jpg';
+import sapporoBankeiFireworksRedGreen from '../../assets/pictures/sapporo-bankei-fireworks-red-green-2024.jpg';
+import sapporoBankeiFireworksFan from '../../assets/pictures/sapporo-bankei-fireworks-fan-2024.jpg';
+import sapporoBankeiFireworksRedWhite from '../../assets/pictures/sapporo-bankei-fireworks-red-white-2024.jpg';
+import sapporoBankeiYukataFireworks from '../../assets/pictures/sapporo-bankei-yukata-fireworks-2024.jpg';
 import ujiTorii from '../../assets/pictures/uji-torii-2024.jpg';
 import ujiMatchaDessert from '../../assets/pictures/uji-matcha-dessert-2024.jpg';
 import ujiRedBench from '../../assets/pictures/uji-red-bench-2024.jpg';
@@ -41,6 +49,7 @@ import wwdc26MandalorianScreening from '../../assets/pictures/wwdc26-mandalorian
 import wwdc26ThinkingDifferent from '../../assets/pictures/wwdc26-thinking-different.jpg';
 import wwdc26Macintosh1984 from '../../assets/pictures/wwdc26-macintosh-1984.jpg';
 import wwdc26IphoneHistoryDisplay from '../../assets/pictures/wwdc26-iphone-history-display.jpg';
+import swiftStudentChallenge2026Award from '../../assets/pictures/swift-student-challenge-2026-award.jpg';
 
 interface FileWindowProps extends WindowAppProps {
     title: string;
@@ -62,16 +71,20 @@ interface PhotoAlbum {
     id: string;
     title: string;
     date: string;
+    sortDate: string;
     cover: PhotoAsset;
     photos: PhotoAsset[];
     description: string[];
 }
 
+type PhotoSortOrder = 'newest' | 'oldest';
+
 const PHOTO_ALBUMS: PhotoAlbum[] = [
     {
         id: 'good-morning-apple-park',
         title: 'Good Morning, Apple Park',
-        date: 'Apple Park · June 7–9, 2026',
+        date: 'Apple Park, California · June 7–9, 2026',
+        sortDate: '2026-06-07',
         cover: {
             src: wwdc26RainbowDucks,
             alt: 'A rainbow arch and a family of ducks on the lawn at Apple Park',
@@ -131,9 +144,27 @@ const PHOTO_ALBUMS: PhotoAlbum[] = [
         ],
     },
     {
+        id: 'swift-student-challenge-2026',
+        title: 'Swift Student Challenge 2026',
+        date: 'Champaign, Illinois · June 1, 2026',
+        sortDate: '2026-06-01',
+        cover: {
+            src: swiftStudentChallenge2026Award,
+            alt: 'A Swift Student Challenge 2026 winner letter beside an AirPods Max box and award package',
+        },
+        photos: [
+            {
+                src: swiftStudentChallenge2026Award,
+                alt: 'A Swift Student Challenge 2026 winner letter beside an AirPods Max box and award package',
+            },
+        ],
+        description: [''],
+    },
+    {
         id: 'powder-day-at-winter-park',
         title: 'Powder Day at Winter Park',
         date: 'Winter Park, Colorado · March 15, 2025',
+        sortDate: '2025-03-15',
         cover: {
             src: winterParkSnowboard,
             alt: 'A snowboarder in black gear resting in the snow at Winter Park',
@@ -147,9 +178,47 @@ const PHOTO_ALBUMS: PhotoAlbum[] = [
         description: ['🏂'],
     },
     {
+        id: 'thrills-beneath-mount-fuji',
+        title: 'Thrills Beneath Mount Fuji',
+        date: 'Fuji-Q Highland, Japan · January 7, 2025',
+        sortDate: '2025-01-07',
+        cover: {
+            src: fujiQSwingMountFuji,
+            alt: 'A glowing swing ride and roller coaster tracks beneath Mount Fuji at dusk',
+        },
+        photos: [
+            {
+                src: fujiQSwingMountFuji,
+                alt: 'A glowing swing ride and roller coaster tracks beneath Mount Fuji at dusk',
+            },
+            {
+                src: fujiQCoasterMountFuji,
+                alt: 'Roller coaster loops silhouetted against Mount Fuji in purple twilight',
+            },
+            {
+                src: fujiQHauntedHospitalSkulls,
+                alt: 'A pile of skull props at the Haunted Hospital in Fuji-Q Highland',
+            },
+            {
+                src: fujiQJikyuHospitalCharm,
+                alt: 'A hand holding a protective charm outside Jikyu General Hospital',
+            },
+        ],
+        description: [
+            'Fuji-Q Highland, right at the foot of Mount Fuji. 🎢',
+            'Four roller coasters, each a Guinness World Record breaker.',
+            'Wait times starting at 120 minutes—another lesson in East Asia’s unmistakable queuing culture.',
+            'Still, they were absolutely worth it.',
+            'It had been a while since I felt that kind of adrenaline rush.',
+            'Beyond the coasters, there was the Haunted Hospital, reportedly converted from an abandoned hospital and once a Guinness World Record–holding haunted attraction.',
+            'But no matter how legendary a haunted house once was, in an age where escape rooms are everywhere, even this one can start to feel surprisingly ordinary.',
+        ],
+    },
+    {
         id: 'first-light-of-2025',
         title: 'First Light of 2025',
-        date: 'Lake Yamanaka · January 1, 2025',
+        date: 'Lake Yamanaka, Japan · January 1, 2025',
+        sortDate: '2025-01-01',
         cover: {
             src: lakeYamanakaFirstLight,
             alt: 'Swans on Lake Yamanaka with Mount Fuji glowing pink at sunrise',
@@ -166,9 +235,44 @@ const PHOTO_ALBUMS: PhotoAlbum[] = [
         ],
     },
     {
+        id: 'summer-colors-in-sapporo',
+        title: 'Summer Colors in Sapporo',
+        date: 'Sapporo Bankei Ski Area, Japan · August 7, 2024',
+        sortDate: '2024-08-07',
+        cover: {
+            src: sapporoBankeiFireworksFan,
+            alt: 'Sweeping gold and purple fireworks filling the night sky in Sapporo',
+        },
+        photos: [
+            {
+                src: sapporoBankeiFireworksRedGreen,
+                alt: 'Red and green fireworks blooming against a black night sky',
+            },
+            {
+                src: sapporoBankeiFireworksFan,
+                alt: 'Sweeping gold and purple fireworks filling the night sky in Sapporo',
+            },
+            {
+                src: sapporoBankeiFireworksRedWhite,
+                alt: 'Red and white fireworks scattered across the night sky',
+            },
+            {
+                src: sapporoBankeiYukataFireworks,
+                alt: 'Friends in yukata watching fireworks from the grassy ski slope',
+            },
+        ],
+        description: [
+            'なついろ祭り — summer colors, festival night.',
+            'Achievement unlocked: watching a fireworks festival with friends, all of us dressed in yukata.',
+            'It poured right up until the show was about to begin.',
+            'For a while, I thought we might not get to see the fireworks at all.',
+        ],
+    },
+    {
         id: 'uji-in-matcha-green',
         title: 'Uji in Matcha Green',
         date: 'Uji, Japan · August 2, 2024',
+        sortDate: '2024-08-02',
         cover: {
             src: ujiMatchaDessert,
             alt: 'Matcha desserts in shades of green on a wooden tray',
@@ -197,6 +301,7 @@ const PHOTO_ALBUMS: PhotoAlbum[] = [
         id: 'a-new-chapter-at-uiuc',
         title: 'A New Chapter at UIUC',
         date: 'Champaign–Urbana, Illinois · August 21, 2023',
+        sortDate: '2023-08-21',
         cover: {
             src: uiucUnionI,
             alt: 'A giant orange and blue Block I with balloons outside the Illini Union',
@@ -504,6 +609,7 @@ export const PhotosFolder: React.FC<WindowAppProps> = (props) => {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
         null
     );
+    const [sortOrder, setSortOrder] = useState<PhotoSortOrder>('newest');
     const albumButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
     const lastOpenedAlbumIdRef = useRef<string | null>(null);
     const backButtonRef = useRef<HTMLButtonElement>(null);
@@ -514,6 +620,18 @@ export const PhotosFolder: React.FC<WindowAppProps> = (props) => {
     const restoreAlbumFocusRef = useRef(false);
     const restorePhotoFocusRef = useRef(false);
     const ignoreOpeningDoubleClickUntilRef = useRef(Date.now() + 450);
+    const sortedAlbums = useMemo(
+        () =>
+            [...PHOTO_ALBUMS].sort((albumA, albumB) => {
+                const chronologicalOrder = albumA.sortDate.localeCompare(
+                    albumB.sortDate
+                );
+                return sortOrder === 'oldest'
+                    ? chronologicalOrder
+                    : -chronologicalOrder;
+            }),
+        [sortOrder]
+    );
     const selectedAlbum =
         PHOTO_ALBUMS.find((album) => album.id === selectedAlbumId) || null;
     const selectedPhoto =
@@ -618,6 +736,15 @@ export const PhotosFolder: React.FC<WindowAppProps> = (props) => {
         lastOpenedAlbumIdRef.current = albumId;
         setSelectedPhotoIndex(null);
         setSelectedAlbumId(albumId);
+    };
+
+    const handleSortKeyDown = (
+        nextSortOrder: PhotoSortOrder,
+        event: React.KeyboardEvent<HTMLButtonElement>
+    ) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        setSortOrder(nextSortOrder);
     };
 
     const handlePhotoKeyDown = (
@@ -873,14 +1000,46 @@ export const PhotosFolder: React.FC<WindowAppProps> = (props) => {
                     >
                         <header className="photos-library-header">
                             <h2 id="photos-library-title">Photos</h2>
-                            <p>
-                                {PHOTO_ALBUMS.length}{' '}
-                                {PHOTO_ALBUMS.length === 1 ? 'album' : 'albums'}
-                            </p>
+                            <div className="photos-library-tools">
+                                <span className="photos-album-count">
+                                    {PHOTO_ALBUMS.length}{' '}
+                                    {PHOTO_ALBUMS.length === 1
+                                        ? 'album'
+                                        : 'albums'}
+                                </span>
+                                <div
+                                    className="photos-sort-control"
+                                    role="group"
+                                    aria-label="Sort albums by date"
+                                >
+                                    <button
+                                        type="button"
+                                        className="photos-sort-button"
+                                        aria-pressed={sortOrder === 'newest'}
+                                        onClick={() => setSortOrder('newest')}
+                                        onKeyDown={(event) =>
+                                            handleSortKeyDown('newest', event)
+                                        }
+                                    >
+                                        Newest
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="photos-sort-button"
+                                        aria-pressed={sortOrder === 'oldest'}
+                                        onClick={() => setSortOrder('oldest')}
+                                        onKeyDown={(event) =>
+                                            handleSortKeyDown('oldest', event)
+                                        }
+                                    >
+                                        Oldest
+                                    </button>
+                                </div>
+                            </div>
                         </header>
 
                         <div className="photos-album-list">
-                            {PHOTO_ALBUMS.map((album) => (
+                            {sortedAlbums.map((album) => (
                                 <button
                                     ref={(element) => {
                                         if (element) {
