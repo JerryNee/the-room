@@ -1,103 +1,98 @@
-import baldursGate3Cover from '../../assets/game-covers/baldurs-gate-3.jpg';
-import cyberpunk2077Cover from '../../assets/game-covers/cyberpunk-2077.jpg';
-import eldenRingCover from '../../assets/game-covers/elden-ring.jpg';
-import hadesCover from '../../assets/game-covers/hades.jpg';
-import stardewValleyCover from '../../assets/game-covers/stardew-valley.jpg';
-import zeldaBreathOfTheWildCover from '../../assets/game-covers/zelda-breath-of-the-wild.jpg';
+import generatedLibrary from './steam-games.generated.json';
+import savedOverrides from './game-overrides.json';
+import arkSurvivalEvolvedCover from '../../assets/game-covers/ark-survival-evolved.webp';
+import deathStranding2Cover from '../../assets/game-covers/death-stranding-2-on-the-beach.jpg';
+import forzaHorizon6Cover from '../../assets/game-covers/forza-horizon-6.jpg';
+import residentEvilRequiemCover from '../../assets/game-covers/resident-evil-requiem.webp';
 
-// Game Tracker data. Add every game you've played as one entry here.
-// Cover art is the primary library view; the other fields appear on selection.
-// The entries below are SAMPLES: replace them with your own history.
-
-export type GameStatus =
-    | 'playing'
-    | 'completed'
-    | 'on-hold'
-    | 'dropped'
-    | 'backlog';
+export type GameSort = 'hours' | 'alphabetical';
 
 export interface GameEntry {
+    appId: number;
     title: string;
     cover: string;
-    platform: string;
-    status: GameStatus;
-    /** 1-10 */
-    rating?: number;
-    /** hours played, roughly */
-    hours?: number;
-    /** year you first played it */
-    year?: number;
-    /** favorite moment, verdict, or why you dropped it */
+    fallbackCover: string;
+    iconUrl?: string;
+    librarySource?: 'owned' | 'family-shared';
+    hours: number;
+    recentHours: number;
+    lastPlayedAt?: number;
     notes?: string;
 }
 
-export const STATUS_LABELS: Record<GameStatus, string> = {
-    playing: 'Playing',
-    completed: 'Completed',
-    'on-hold': 'On Hold',
-    dropped: 'Dropped',
-    backlog: 'Backlog',
+export interface SteamLibraryProfile {
+    steamId: string;
+    name: string;
+    url: string;
+    avatarUrl: string;
+}
+
+export interface SteamLibrary {
+    profile: SteamLibraryProfile;
+    source:
+        | 'steam-web-api'
+        | 'steam-web-api+local-client'
+        | 'public-profile-preview'
+        | 'public-profile-preview+local-client';
+    isComplete: boolean;
+    syncedAt: string;
+    games: GameEntry[];
+}
+
+export interface GameOverride {
+    hidden?: boolean;
+    notes?: string;
+}
+
+export type GameOverrides = Record<string, GameOverride>;
+
+const toHours = (minutes = 0) => minutes / 60;
+const rawLibrary = generatedLibrary as typeof generatedLibrary;
+const COVER_OVERRIDES: Record<number, string> = {
+    346110: arkSurvivalEvolvedCover,
+    2483190: forzaHorizon6Cover,
+    3280350: deathStranding2Cover,
+    3764200: residentEvilRequiemCover,
 };
 
-const GAMES: GameEntry[] = [
-    {
-        title: 'The Legend of Zelda: Breath of the Wild',
-        cover: zeldaBreathOfTheWildCover,
-        platform: 'Switch',
-        status: 'completed',
-        rating: 10,
-        hours: 120,
-        year: 2023,
-        notes: 'The plateau opening is still the best tutorial ever made.',
-    },
-    {
-        title: 'Elden Ring',
-        cover: eldenRingCover,
-        platform: 'PC',
-        status: 'playing',
-        rating: 9,
-        hours: 85,
-        year: 2024,
-        notes: 'Currently lost in the Lands Between. Malenia can wait.',
-    },
-    {
-        title: 'Hades',
-        cover: hadesCover,
-        platform: 'PC',
-        status: 'completed',
-        rating: 9,
-        hours: 60,
-        year: 2023,
-        notes: 'Escaped 30+ times and still coming back for the dialogue.',
-    },
-    {
-        title: 'Stardew Valley',
-        cover: stardewValleyCover,
-        platform: 'PC',
-        status: 'on-hold',
-        rating: 8,
-        hours: 45,
-        year: 2022,
-        notes: 'Year 3 farm is thriving; will return next winter (real one).',
-    },
-    {
-        title: "Baldur's Gate 3",
-        cover: baldursGate3Cover,
-        platform: 'PC',
-        status: 'backlog',
-        year: 2025,
-        notes: 'Bought on sale. Waiting for a free month, which may never come.',
-    },
-    {
-        title: 'Cyberpunk 2077',
-        cover: cyberpunk2077Cover,
-        platform: 'PC',
-        status: 'dropped',
-        rating: 6,
-        hours: 15,
-        year: 2022,
-        notes: 'Bounced off at launch; should retry post-2.0 someday.',
-    },
-];
+export const GAME_OVERRIDES = savedOverrides as GameOverrides;
 
-export default GAMES;
+export const STEAM_CATALOG: GameEntry[] = rawLibrary.games.map((game) => ({
+    appId: game.appId,
+    title: game.name,
+    cover:
+        COVER_OVERRIDES[game.appId] ||
+        `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.appId}/library_600x900_2x.jpg`,
+    fallbackCover:
+        game.fallbackImageUrl ||
+        game.iconUrl ||
+        `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.appId}/header.jpg`,
+    iconUrl: game.iconUrl,
+    librarySource:
+        'librarySource' in game
+            ? (game.librarySource as GameEntry['librarySource'])
+            : undefined,
+    hours: toHours(game.playtimeMinutes),
+    recentHours: toHours(game.recentPlaytimeMinutes),
+    lastPlayedAt: game.lastPlayedAt || undefined,
+}));
+
+export const getVisibleSteamGames = (
+    overrides: GameOverrides = GAME_OVERRIDES
+) =>
+    STEAM_CATALOG.filter(
+        (game) => game.hours > 0 && !overrides[String(game.appId)]?.hidden
+    ).map((game) => ({
+        ...game,
+        notes: overrides[String(game.appId)]?.notes,
+    }));
+
+const STEAM_LIBRARY: SteamLibrary = {
+    profile: rawLibrary.profile,
+    source: rawLibrary.source as SteamLibrary['source'],
+    isComplete: rawLibrary.isComplete,
+    syncedAt: rawLibrary.syncedAt,
+    games: getVisibleSteamGames(),
+};
+
+export default STEAM_LIBRARY;

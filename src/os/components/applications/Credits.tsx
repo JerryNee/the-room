@@ -7,38 +7,40 @@ export interface CreditsProps extends WindowAppProps {}
 
 const CREDITS = [
     {
-        title: 'Portfolio Adaptation',
-        rows: [['Jianwei Ni', 'Content, projects, and customization']],
-    },
-    {
-        title: 'Original 3D Site Assets',
+        title: 'Created by',
         rows: [
-            ['Jianwei Ni', 'Original concept, texturing, composition, and UV'],
-            ['Mickael Boitte', 'Computer Model'],
-            ['Sean Nicolas', 'Environment Models'],
+            [
+                'Jianwei Ni',
+                'Creative direction, design, development, and content',
+            ],
+            [
+                'Jianwei Ni',
+                '3D composition, interaction design, and asset customization',
+            ],
         ],
     },
     {
-        title: 'Sound Design',
+        title: '3D Asset Artists',
         rows: [
-            ['Jianwei Ni', 'Original mixing, composition, and foley'],
-            ['Sound Cassette', 'Office Ambience'],
-            ['Windows 95 Startup Sound', 'Microsoft'],
+            ['Ibrahim.Bhl', 'Mac Studio'],
+            ['crumhirnd', 'Studio Display'],
+            ['Cre8t!ve V!be', 'Modern chair'],
+            ['Baldev Ranna', 'Monitor raiser'],
+            ['45P3R4', 'Keyboard'],
+            ['danish_blends', 'Mouse'],
+            ['Blizzy', 'Potted plant'],
+            ['MADE.COM', 'Floor lamp'],
         ],
     },
     {
-        title: 'Special Thanks',
+        title: 'Audio & Technology',
         rows: [
-            ['Bruno Simon', 'SimonDev'],
-            ['Lorelei Kravinsky', 'Scott Bass'],
-            ['Trey Briccetti', 'Mom, Dad & Angela'],
-        ],
-    },
-    {
-        title: 'Inspiration',
-        rows: [
-            ['Bruno Simon', 'Jesse Zhou'],
-            ['Pink Yellow', 'Vivek Patel'],
+            [
+                'BigSoundBank / LaSonotheque',
+                'Room ambience, door, and transition audio',
+            ],
+            ['Jianwei Ni', 'Audio editing, mixing, and integration'],
+            ['Three.js · React · Framer Motion', 'Core web technology'],
         ],
     },
 ];
@@ -86,7 +88,7 @@ const Credits: React.FC<CreditsProps> = (props) => {
                 style={styles.credits}
             >
                 <h2>Credits</h2>
-                <p>Jianwei Ni Portfolio</p>
+                <p>Jerry&apos;s Room · JianweiOS</p>
                 <br />
                 <br />
                 <br />

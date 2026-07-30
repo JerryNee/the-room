@@ -61,6 +61,28 @@
     padding: 2px;
 }
 
+.game-library__header-actions {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+}
+
+.game-library__manage-button {
+    appearance: none;
+    background: #f7f7f4;
+    border: 1px solid #aaa9a4;
+    border-radius: 7px;
+    box-shadow: 0 1px 0 #ffffff inset, 0 1px 2px rgb(30 30 28 / 0.12);
+    color: #30302d;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 680;
+    min-height: 31px;
+    padding: 6px 10px;
+}
+
 .game-library__filters button {
     align-items: center;
     appearance: none;
@@ -86,6 +108,17 @@
     font-variant-numeric: tabular-nums;
 }
 
+.game-library__preview {
+    background: #f7e7b9;
+    border-bottom: 1px solid rgb(93 70 17 / 0.16);
+    color: #64511d;
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 590;
+    line-height: 1.4;
+    padding: 8px 24px;
+}
+
 .game-library__filters button[aria-pressed='true'] {
     background: #ffffff;
     box-shadow: 0 1px 3px rgb(32 32 30 / 0.22);
@@ -93,6 +126,7 @@
 }
 
 .game-library__filters button:focus-visible,
+.game-library__manage-button:focus-visible,
 .game-case:focus-visible,
 .game-inspector__close:focus-visible {
     outline: 3px solid rgb(0 122 255 / 0.72);
@@ -182,6 +216,21 @@
     object-fit: cover;
     user-select: none;
     width: 100%;
+}
+
+.game-case__cover img.is-fallback {
+    background: #171a21;
+    box-sizing: border-box;
+    object-fit: contain;
+    object-position: center;
+    padding: 10px;
+}
+
+.game-inspector__cover.is-fallback {
+    background: #171a21;
+    box-sizing: border-box;
+    object-fit: contain;
+    padding: 16px;
 }
 
 .game-case__status-dot {
@@ -322,6 +371,7 @@
 }
 
 .game-inspector__status {
+    background: #1b2838;
     border-radius: 999px;
     color: #ffffff;
     display: inline-block;
@@ -329,6 +379,19 @@
     font-weight: 760;
     line-height: 1;
     padding: 6px 9px;
+}
+
+.game-inspector__steam-link {
+    color: #1f65a2;
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-top: 22px;
+    text-decoration: none;
+}
+
+.game-inspector__steam-link:hover {
+    text-decoration: underline;
 }
 
 .game-inspector h3 {
@@ -394,6 +457,10 @@
     .game-library__filters {
         max-width: 100%;
         overflow-x: auto;
+    }
+
+    .game-library__header-actions {
+        max-width: 100%;
     }
 
     .game-library__filters button,

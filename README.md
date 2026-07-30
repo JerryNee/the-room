@@ -32,7 +32,7 @@ npm run build
 
 ## Credits
 
-Computer model by Mickael Boitte, environment models by Sean Nicolas, office ambience by Sound Cassette; other audio licensed per <samp>docs/audio-assets.md</samp>. Inspired by the work of Bruno Simon, Henry Heffernan, Jesse Zhou, Pink Yellow, and Vivek Patel.
+<samp>Jerry's Room</samp> is designed and developed by Jianwei Ni. The current 3D scene combines custom composition and implementation with credited models by Ibrahim.Bhl, crumhirnd, Cre8t!ve V!be, Baldev Ranna, 45P3R4, danish_blends, Blizzy, and MADE.COM. Room-entry audio is sourced from BigSoundBank / LaSonotheque and edited and integrated for this project; details are documented in <samp>docs/audio-assets.md</samp>. Built with Three.js, React, and Framer Motion.
 
 <br>
 

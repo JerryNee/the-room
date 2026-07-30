@@ -1,0 +1,41 @@
+name: Sync Steam library
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 12 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the portfolio
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch Steam games and merge the local family snapshot
+        run: npm run sync:steam
+        env:
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          STEAM_ID: '76561198413462584'
+          STEAM_PROFILE_URL: 'https://steamcommunity.com/id/super_jerry001/'
+          STEAM_REQUIRE_API: 'true'
+
+      - name: Commit an updated library
+        run: |
+          if git diff --quiet -- src/os/components/gametracker/steam-games.generated.json src/os/components/gametracker/steam-local-games.generated.json; then
+            echo "Steam library is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/os/components/gametracker/steam-games.generated.json src/os/components/gametracker/steam-local-games.generated.json
+          git commit -m "Update Steam game library"
+          git push

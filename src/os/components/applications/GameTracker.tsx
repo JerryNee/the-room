@@ -1,25 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Window from '../os/Window';
-import GAMES, {
+import STEAM_LIBRARY, {
+    GAME_OVERRIDES,
     GameEntry,
-    GameStatus,
-    STATUS_LABELS,
+    GameOverrides,
+    GameSort,
+    STEAM_CATALOG,
+    getVisibleSteamGames,
 } from '../gametracker/games';
+import GameLibraryManager from '../gametracker/GameLibraryManager';
 import './GameTracker.css';
 
 export interface GameTrackerProps extends WindowAppProps {}
 
-type Filter = GameStatus | 'all';
+const SORT_LABELS: Record<GameSort, string> = {
+    hours: 'Most Played',
+    alphabetical: 'A-Z',
+};
 
-const FILTERS: Filter[] = [
-    'all',
-    'playing',
-    'completed',
-    'on-hold',
-    'dropped',
-    'backlog',
-];
-
+const SORTS: GameSort[] = ['hours', 'alphabetical'];
 const GAMES_PER_SHELF = 6;
 
 const groupIntoShelves = (games: GameEntry[]) => {
@@ -30,26 +29,50 @@ const groupIntoShelves = (games: GameEntry[]) => {
     return shelves;
 };
 
+const formatHours = (hours: number) => {
+    if (!hours) return 'Not played yet';
+    if (hours < 0.1) return '< 0.1 hours';
+    return `${hours.toLocaleString(undefined, {
+        maximumFractionDigits: 1,
+    })} ${hours === 1 ? 'hour' : 'hours'}`;
+};
+
+const formatLastPlayed = (timestamp?: number) => {
+    if (!timestamp) return 'No recent session';
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(new Date(timestamp * 1000));
+};
+
 const GameTracker: React.FC<GameTrackerProps> = (props) => {
-    const [filter, setFilter] = useState<Filter>('all');
+    const [sort, setSort] = useState<GameSort>('hours');
     const [selectedGame, setSelectedGame] = useState<GameEntry | null>(null);
+    const [managerOpen, setManagerOpen] = useState(false);
+    const [overrides, setOverrides] = useState<GameOverrides>(GAME_OVERRIDES);
+    const canManage =
+        import.meta.env.DEV &&
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 
-    const games = useMemo(
-        () =>
-            [...GAMES].sort(
-                (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.title.localeCompare(b.title)
-            ),
-        []
+    const games = useMemo(() => {
+        const sorted = getVisibleSteamGames(overrides);
+
+        if (sort === 'alphabetical') {
+            return sorted.sort((a, b) => a.title.localeCompare(b.title));
+        }
+
+        return sorted.sort(
+            (a, b) => b.hours - a.hours || a.title.localeCompare(b.title)
+        );
+    }, [overrides, sort]);
+
+    const shelves = useMemo(() => groupIntoShelves(games), [games]);
+    const totalHours = useMemo(
+        () => Math.round(games.reduce((sum, game) => sum + game.hours, 0)),
+        [games]
     );
-    const shown = useMemo(
-        () => (filter === 'all' ? games : games.filter((g) => g.status === filter)),
-        [games, filter]
-    );
-
-    const shelves = useMemo(() => groupIntoShelves(shown), [shown]);
-
-    const countFor = (f: Filter) =>
-        f === 'all' ? games.length : games.filter((g) => g.status === f).length;
 
     useEffect(() => {
         if (!selectedGame) return;
@@ -60,15 +83,15 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
         return () => window.removeEventListener('keydown', closeOnEscape);
     }, [selectedGame]);
 
-    useEffect(() => {
-        if (
-            selectedGame &&
-            filter !== 'all' &&
-            selectedGame.status !== filter
-        ) {
-            setSelectedGame(null);
-        }
-    }, [filter, selectedGame]);
+    const useFallbackCover = (
+        event: React.SyntheticEvent<HTMLImageElement>
+    ) => {
+        const image = event.currentTarget;
+        if (image.dataset.fallback === 'true') return;
+        image.dataset.fallback = 'true';
+        image.src = image.dataset.fallbackSrc || '';
+        image.classList.add('is-fallback');
+    };
 
     return (
         <Window
@@ -81,58 +104,76 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
             closeWindow={props.onClose}
             onInteract={props.onInteract}
             minimizeWindow={props.onMinimize}
-            bottomLeftText={`${games.length} games on the shelf`}
+            bottomLeftText={`${games.length} games · ${totalHours.toLocaleString()} hours`}
         >
             <div className="game-library">
                 <header className="game-library__header">
                     <div>
                         <h2>Game Shelf</h2>
                         <p>
-                            {games.length} games collected · select a cover to open
-                            its case
+                            {games.length} games · {totalHours.toLocaleString()} hours
+                            on record
                         </p>
                     </div>
 
-                    <div
-                        className="game-library__filters"
-                        role="group"
-                        aria-label="Filter game shelf by status"
-                    >
-                        {FILTERS.map((filterOption) => (
+                    <div className="game-library__header-actions">
+                        {canManage && (
                             <button
-                                key={filterOption}
+                                className="game-library__manage-button"
                                 type="button"
-                                aria-pressed={filter === filterOption}
-                                onClick={() => setFilter(filterOption)}
+                                onClick={() => {
+                                    setSelectedGame(null);
+                                    setManagerOpen(true);
+                                }}
                             >
-                                {filterOption === 'all'
-                                    ? 'All'
-                                    : STATUS_LABELS[filterOption]}
-                                <span>{countFor(filterOption)}</span>
+                                Manage
                             </button>
-                        ))}
+                        )}
+                        <div
+                            className="game-library__filters"
+                            role="group"
+                            aria-label="Sort game shelf"
+                        >
+                            {SORTS.map((sortOption) => (
+                                <button
+                                    key={sortOption}
+                                    type="button"
+                                    aria-pressed={sort === sortOption}
+                                    onClick={() => setSort(sortOption)}
+                                >
+                                    {SORT_LABELS[sortOption]}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </header>
+
+                {!STEAM_LIBRARY.isComplete && (
+                    <div className="game-library__preview" role="status">
+                        Showing six public Steam highlights. Add the private API key
+                        to import the complete library automatically.
+                    </div>
+                )}
 
                 <main className="game-library__scroll">
                     {shelves.map((shelf, shelfIndex) => (
                         <section
                             className="game-shelf"
                             aria-label={`Game shelf ${shelfIndex + 1}`}
-                            key={`${filter}-${shelfIndex}`}
+                            key={`${sort}-${shelfIndex}`}
                         >
                             <div className="game-shelf__games">
                                 {shelf.map((game) => (
                                     <button
                                         className="game-case"
-                                        data-status={game.status}
-                                        key={game.title}
+                                        key={game.appId}
                                         onClick={() => setSelectedGame(game)}
                                         type="button"
                                     >
                                         <span className="game-case__cover">
                                             <img
                                                 alt={`${game.title} cover art`}
+                                                data-fallback-src={game.fallbackCover}
                                                 decoding="async"
                                                 draggable={false}
                                                 loading={
@@ -140,19 +181,13 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
                                                         ? 'eager'
                                                         : 'lazy'
                                                 }
+                                                onError={useFallbackCover}
                                                 src={game.cover}
-                                            />
-                                            <span
-                                                className="game-case__status-dot"
-                                                aria-hidden="true"
                                             />
                                         </span>
                                         <span className="game-case__caption">
                                             <strong>{game.title}</strong>
-                                            <span>
-                                                {game.platform} ·{' '}
-                                                {STATUS_LABELS[game.status]}
-                                            </span>
+                                            <span>{formatHours(game.hours)}</span>
                                         </span>
                                     </button>
                                 ))}
@@ -160,10 +195,6 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
                             <div className="game-shelf__ledge" aria-hidden="true" />
                         </section>
                     ))}
-
-                    {shown.length === 0 && (
-                        <p className="game-library__empty">Nothing on this shelf yet.</p>
-                    )}
                 </main>
 
                 {selectedGame && (
@@ -182,21 +213,16 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
                         <img
                             className="game-inspector__cover"
                             alt={`${selectedGame.title} cover art`}
+                            data-fallback-src={selectedGame.fallbackCover}
                             decoding="async"
+                            onError={useFallbackCover}
                             src={selectedGame.cover}
                         />
                         <div className="game-inspector__copy">
-                            <span
-                                className="game-inspector__status"
-                                data-status={selectedGame.status}
-                            >
-                                {STATUS_LABELS[selectedGame.status]}
-                            </span>
+                            <span className="game-inspector__status">Steam</span>
                             <h3>{selectedGame.title}</h3>
                             <p className="game-inspector__metadata">
-                                {[selectedGame.platform, selectedGame.year]
-                                    .filter(Boolean)
-                                    .join(' · ')}
+                                App ID {selectedGame.appId}
                             </p>
                             {selectedGame.notes && (
                                 <p className="game-inspector__notes">
@@ -204,21 +230,41 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
                                 </p>
                             )}
                             <dl className="game-inspector__facts">
-                                {selectedGame.hours !== undefined && (
-                                    <div>
-                                        <dt>Played</dt>
-                                        <dd>{selectedGame.hours} hours</dd>
-                                    </div>
-                                )}
-                                {selectedGame.rating !== undefined && (
-                                    <div>
-                                        <dt>Rating</dt>
-                                        <dd>{selectedGame.rating}/10</dd>
-                                    </div>
-                                )}
+                                <div>
+                                    <dt>Played</dt>
+                                    <dd>{formatHours(selectedGame.hours)}</dd>
+                                </div>
+                                <div>
+                                    <dt>Last played</dt>
+                                    <dd>
+                                        {formatLastPlayed(
+                                            selectedGame.lastPlayedAt
+                                        )}
+                                    </dd>
+                                </div>
                             </dl>
+                            <a
+                                className="game-inspector__steam-link"
+                                href={`https://store.steampowered.com/app/${selectedGame.appId}`}
+                                rel="noreferrer"
+                                target="_blank"
+                            >
+                                View on Steam ↗
+                            </a>
                         </div>
                     </aside>
+                )}
+
+                {managerOpen && (
+                    <GameLibraryManager
+                        catalog={STEAM_CATALOG}
+                        initialOverrides={overrides}
+                        onClose={() => setManagerOpen(false)}
+                        onSaved={(savedOverrides) => {
+                            setOverrides(savedOverrides);
+                            setSelectedGame(null);
+                        }}
+                    />
                 )}
             </div>
         </Window>

@@ -8,6 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "sync:steam": "node scripts/sync-steam-library.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
