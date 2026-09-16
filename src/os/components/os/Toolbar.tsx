@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Colors from '../../constants/colors';
 import { Icon } from '../general';
-// import { } from '../general';
-// import Home from '../site/Home';
-// import Window from './Window';
 
 export interface ToolbarProps {
     windows: DesktopWindows;
@@ -11,170 +8,110 @@ export interface ToolbarProps {
     shutdown: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({
-    windows,
-    toggleMinimize,
-    shutdown,
-}) => {
-    const getTime = () => {
-        const date = new Date();
-        let hours = date.getHours();
-        let minutes = date.getMinutes();
-        let amPm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        let mins = minutes < 10 ? '0' + minutes : minutes;
-        const strTime = hours + ':' + mins + ' ' + amPm;
-        return strTime;
-    };
-
+const Toolbar: React.FC<ToolbarProps> = ({ windows, toggleMinimize, shutdown }) => {
+    const getTime = () => new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric', minute: '2-digit', hour12: true,
+    });
     const [startWindowOpen, setStartWindowOpen] = useState(false);
-    const lastClickInside = useRef(false);
-
-    const [lastActive, setLastActive] = useState('');
-
-    useEffect(() => {
-        let max = 0;
-        let k = '';
-        Object.keys(windows).forEach((key) => {
-            if (windows[key].zIndex >= max) {
-                max = windows[key].zIndex;
-                k = key;
-            }
-        });
-        setLastActive(k);
-    }, [windows]);
-
+    const toolbarRef = useRef<HTMLDivElement>(null);
     const [time, setTime] = useState(getTime());
+    const lastActive = Object.keys(windows).reduce((active, key) =>
+        !active || windows[key].zIndex >= windows[active].zIndex ? key : active, '');
 
     useEffect(() => {
         const timer = window.setInterval(() => setTime(getTime()), 5000);
         return () => window.clearInterval(timer);
     }, []);
 
-    const onCheckClick = () => {
-        if (lastClickInside.current) {
-            setStartWindowOpen(true);
-        } else {
-            setStartWindowOpen(false);
-        }
-        lastClickInside.current = false;
-    };
-
     useEffect(() => {
-        window.addEventListener('mousedown', onCheckClick, false);
-        return () => {
-            window.removeEventListener('mousedown', onCheckClick, false);
+        const closeOutside = (event: MouseEvent) => {
+            if (!toolbarRef.current?.contains(event.target as Node)) {
+                setStartWindowOpen(false);
+            }
         };
-    }, []);
-
-    const onStartWindowClicked = (event: React.MouseEvent) => {
-        event.stopPropagation();
-        setStartWindowOpen(true);
-        lastClickInside.current = true;
-    };
-
-    const toggleStartWindow = (event: React.MouseEvent) => {
-        event.stopPropagation();
-        const nextOpen = !startWindowOpen;
-        setStartWindowOpen(nextOpen);
-        lastClickInside.current = nextOpen;
-    };
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && startWindowOpen) {
+                event.preventDefault();
+                setStartWindowOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', closeOutside);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOutside);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [startWindowOpen]);
 
     return (
-        <div style={styles.toolbarOuter}>
+        <div className="os-toolbar" style={styles.toolbarOuter} ref={toolbarRef}>
             {startWindowOpen && (
-                <div
-                    onMouseDown={onStartWindowClicked}
-                    style={styles.startWindow}
-                >
+                <div className="os-start-menu" style={styles.startWindow}>
                     <div style={styles.startWindowInner}>
-                        <div style={styles.verticalStartContainer}>
-                            <p style={styles.verticalText}>JianweiOS</p>
-                        </div>
                         <div style={styles.startWindowContent}>
-                            <div style={styles.startMenuSpace} />
-                            <div style={styles.startMenuLine} />
-                            <div
+                            <button
+                                type="button"
                                 className="start-menu-option"
                                 style={styles.startMenuOption}
-                                onMouseDown={shutdown}
+                                onClick={() => {
+                                    setStartWindowOpen(false);
+                                    shutdown();
+                                }}
                             >
-                                <Icon
-                                    style={styles.startMenuIcon}
-                                    icon="computerBig"
-                                />
-                                <p style={styles.startMenuText}>
-                                    Shut Down...
-                                </p>
-                            </div>
+                                <Icon style={styles.startMenuIcon} icon="computerBig" />
+                                <span style={styles.startMenuText}>Shut Down...</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-            <div style={styles.toolbarInner}>
-                <div style={styles.toolbar}>
-                    <div
-                        style={Object.assign(
-                            {},
-                            styles.startContainerOuter,
-                            startWindowOpen && styles.activeTabOuter
-                        )}
-                        onMouseDown={toggleStartWindow}
+            <div className="os-toolbar-inner" style={styles.toolbarInner}>
+                <div className="os-toolbar-main" style={styles.toolbar}>
+                    <button
+                        type="button"
+                        className="os-start-button"
+                        aria-label="JianweiOS menu"
+                        aria-expanded={startWindowOpen}
+                        style={Object.assign({}, styles.startContainerOuter,
+                            startWindowOpen && styles.activeTabOuter)}
+                        onClick={() => setStartWindowOpen((open) => !open)}
                     >
-                        <div
-                            style={Object.assign(
-                                {},
-                                styles.startContainer,
-                                startWindowOpen && styles.activeTabInner
-                            )}
-                        >
-                            <Icon
-                                size={18}
-                                icon="myComputer"
-                                style={styles.startIcon}
-                            />
-                            <p className="toolbar-text ">JianweiOS</p>
+                        <div style={Object.assign({}, styles.startContainer,
+                            startWindowOpen && styles.activeTabInner)}>
+                            <Icon size={18} icon="myComputer" style={styles.startIcon} />
+                            <span className="toolbar-text">JianweiOS</span>
                         </div>
-                    </div>
-                    <div style={styles.toolbarTabsContainer}>
+                    </button>
+                    <div className="os-toolbar-tabs" style={styles.toolbarTabsContainer}
+                        aria-label="Open applications">
                         {Object.keys(windows).map((key) => {
+                            const active = lastActive === key && !windows[key].minimized;
                             return (
-                                <div
+                                <button
+                                    type="button"
                                     key={key}
-                                    style={Object.assign(
-                                        {},
-                                        styles.tabContainerOuter,
-                                        lastActive === key &&
-                                            !windows[key].minimized &&
-                                            styles.activeTabOuter
-                                    )}
-                                    onMouseDown={() => toggleMinimize(key)}
+                                    className="os-toolbar-tab"
+                                    title={windows[key].name}
+                                    aria-label={`${active ? 'Minimize' : windows[key].minimized ? 'Restore' : 'Switch to'} ${windows[key].name}`}
+                                    aria-pressed={active}
+                                    style={Object.assign({}, styles.tabContainerOuter,
+                                        active && styles.activeTabOuter)}
+                                    onClick={() => toggleMinimize(key)}
                                 >
-                                    <div
-                                        style={Object.assign(
-                                            {},
-                                            styles.tabContainer,
-                                            lastActive === key &&
-                                                !windows[key].minimized &&
-                                                styles.activeTabInner
-                                        )}
-                                    >
-                                        <Icon
-                                            size={18}
-                                            icon={windows[key].icon}
-                                            style={styles.tabIcon}
-                                        />
-                                        <p style={styles.tabText}>
+                                    <div className="os-toolbar-tab-inner"
+                                        style={Object.assign({}, styles.tabContainer,
+                                            active && styles.activeTabInner)}>
+                                        <Icon size={18} icon={windows[key].icon} style={styles.tabIcon} />
+                                        <span className="os-toolbar-tab-label" style={styles.tabText}>
                                             {windows[key].name}
-                                        </p>
+                                        </span>
                                     </div>
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
                 </div>
-                <div style={styles.time}>
+                <div className="os-toolbar-time" style={styles.time}>
                     <Icon style={styles.volumeIcon} icon="volumeOn" />
                     <p style={styles.timeText}>{time}</p>
                 </div>

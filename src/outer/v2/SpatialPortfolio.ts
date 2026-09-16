@@ -236,6 +236,8 @@ const ENTRY_PARALLAX_Y = 0.07;
 const ENTRY_PARALLAX_TARGET_X = 0.08;
 const ENTRY_PARALLAX_TARGET_Y = 0.04;
 const MONITOR_CSS_SIZE = new THREE.Vector2(1280, 720);
+const MOBILE_MONITOR_QUERY =
+    '(max-width: 768px), (max-width: 1024px) and (pointer: coarse)';
 const FALLBACK_MONITOR_WORLD_SIZE = new THREE.Vector2(0.92, 0.518);
 const FALLBACK_MONITOR_POSITION = new THREE.Vector3(0, 1.255, -3.545);
 const MONITOR_NORMAL = new THREE.Vector3(0, 0, 1);
@@ -317,6 +319,11 @@ export default class SpatialPortfolio {
     private monitorElement: HTMLDivElement | null;
     private monitorIframe: HTMLIFrameElement | null;
     private monitorInputProxyEl: HTMLDivElement;
+    private mobileMonitorQuery = window.matchMedia(MOBILE_MONITOR_QUERY);
+    private mobileMonitorActive = false;
+    private mobileScrollPositions: { element: Element; top: number; left: number }[] = [];
+    private mobileMonitorBarEl: HTMLDivElement;
+    private openComputerButtonEl: HTMLButtonElement;
     private monitorGlassMaterial: THREE.MeshBasicMaterial | null;
     private monitorDimmingMaterial: THREE.MeshBasicMaterial | null;
     private monitorWorldPosition: THREE.Vector3;
@@ -580,7 +587,37 @@ export default class SpatialPortfolio {
         this.backButtonEl.className = 'v2-back-button';
         this.backButtonEl.type = 'button';
         this.backButtonEl.textContent = 'Back to room';
-        this.backButtonEl.addEventListener('click', () => this.returnToRoom());
+        this.backButtonEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.returnToRoom();
+        });
+
+        this.mobileMonitorBarEl = document.createElement('div');
+        this.mobileMonitorBarEl.className = 'v2-mobile-monitor-bar';
+        this.mobileMonitorBarEl.hidden = true;
+        const roomButton = document.createElement('button');
+        roomButton.type = 'button';
+        roomButton.textContent = '← Room';
+        roomButton.setAttribute('aria-label', 'Back to room');
+        roomButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.returnToRoom();
+        });
+        const computerTitle = document.createElement('span');
+        computerTitle.textContent = 'Jerry’s computer';
+        this.mobileMonitorBarEl.append(roomButton, computerTitle);
+
+        this.openComputerButtonEl = document.createElement('button');
+        this.openComputerButtonEl.type = 'button';
+        this.openComputerButtonEl.className = 'v2-open-computer';
+        this.openComputerButtonEl.textContent = 'Open computer';
+        this.openComputerButtonEl.hidden = true;
+        this.openComputerButtonEl.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (this.state === 'room-idle' && this.monitorIframe) {
+                this.focusObject('computer');
+            }
+        });
 
         this.roomHudEl = document.createElement('div');
         this.roomHudEl.className = 'v2-room-hud';
@@ -652,6 +689,8 @@ export default class SpatialPortfolio {
         root.appendChild(this.labelEl);
         root.appendChild(this.panelEl);
         root.appendChild(this.backButtonEl);
+        root.appendChild(this.mobileMonitorBarEl);
+        root.appendChild(this.openComputerButtonEl);
         this.uiContainer.appendChild(root);
     }
 
@@ -711,14 +750,50 @@ export default class SpatialPortfolio {
             this.focusedKey === 'computer' &&
             this.state === 'focus-computer';
 
+        const mobile = interactive && this.mobileMonitorQuery.matches;
+        if (mobile !== this.mobileMonitorActive) {
+            if (!mobile) {
+                // Returning to the 1280px scene preview can clamp long mobile
+                // documents' scroll offsets. Restore them when reopened.
+                this.mobileScrollPositions = this.mobileMonitorQuery.matches
+                    ? Array.from(this.monitorIframe?.contentDocument?.querySelectorAll('*') || [])
+                          .filter((element) => element.scrollTop > 0 || element.scrollLeft > 0)
+                          .map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }))
+                    : [];
+            }
+            this.mobileMonitorActive = mobile;
+            // Flatten the existing CSS3D surface in place. Reparenting an iframe
+            // reloads its document and would discard open windows and scroll.
+            this.cssRoot.classList.toggle('is-mobile-monitor', mobile);
+            this.mobileMonitorBarEl.hidden = !mobile;
+            if (mobile) {
+                this.monitorIframe?.focus();
+                window.requestAnimationFrame(() => {
+                    if (!this.mobileMonitorActive) return;
+                    this.mobileScrollPositions.forEach(({ element, top, left }) => {
+                        if (element.isConnected) element.scrollTo(left, top);
+                    });
+                    this.mobileScrollPositions = [];
+                });
+            }
+        }
+        this.openComputerButtonEl.hidden = !(
+            this.mobileMonitorQuery.matches &&
+            this.state === 'room-idle' &&
+            this.monitorIframe &&
+            !this.placementMode &&
+            !this.freeOrbitEnabled
+        );
         this.cssRoot.classList.toggle('is-monitor-interactive', interactive);
         this.monitorElement?.classList.toggle('is-interactive', interactive);
-        this.cssRoot.style.pointerEvents = 'none';
-        this.cssRenderer.domElement.style.pointerEvents = 'none';
+        this.cssRoot.style.pointerEvents = mobile ? 'auto' : 'none';
+        this.cssRenderer.domElement.style.pointerEvents = mobile ? 'auto' : 'none';
         if (this.monitorElement?.parentElement) {
-            this.monitorElement.parentElement.style.pointerEvents = 'none';
+            this.monitorElement.parentElement.style.pointerEvents = mobile ? 'auto' : 'none';
         }
-        this.updateMonitorInputProxy(interactive);
+        // Native iframe input is essential for touch scrolling, selection,
+        // focus and the software keyboard; the mouse proxy is desktop-only.
+        this.updateMonitorInputProxy(interactive && !mobile);
     }
 
     private bindMonitorInputProxy() {
@@ -2974,6 +3049,16 @@ export default class SpatialPortfolio {
         iframe.frameBorder = '0';
         iframe.addEventListener('load', () => {
             iframe.classList.add('is-loaded');
+            iframe.contentWindow?.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') return;
+                // Let an OS menu or viewer consume Escape first. Focus can
+                // remain in this document after rotating back to desktop.
+                window.setTimeout(() => {
+                    if (this.focusedKey === 'computer' && !event.defaultPrevented) {
+                        this.returnToRoom();
+                    }
+                }, 0);
+            });
         });
         this.monitorIframe = iframe;
 
@@ -3193,8 +3278,9 @@ export default class SpatialPortfolio {
 
     private addEvents() {
         window.addEventListener('resize', () => this.resize());
+        this.mobileMonitorQuery.addEventListener('change', () => this.resize());
         window.addEventListener('mousemove', (event) => this.onPointerMove(event));
-        window.addEventListener('click', () => this.onClick());
+        window.addEventListener('click', (event) => this.onClick(event));
         window.addEventListener('keydown', (event) => this.onKeyDown(event));
         window.addEventListener('keyup', (event) => this.onKeyUp(event));
         window.addEventListener('popstate', () => {
@@ -3209,7 +3295,10 @@ export default class SpatialPortfolio {
         this.labelEl.style.top = `${event.clientY}px`;
     }
 
-    private onClick() {
+    private onClick(event: MouseEvent) {
+        if (this.mobileMonitorActive) return;
+        // A touch click must use its own coordinates, not the last hover.
+        this.onPointerMove(event);
         if (this.placementMode) return;
         if (this.state === 'door-opening' || this.state === 'returning-room') return;
 
@@ -3694,6 +3783,7 @@ export default class SpatialPortfolio {
             focusPose,
             REDUCED_MOTION ? 1 : 1300
         );
+        this.updateMonitorInteractivity();
     }
 
     private getComputerFocusPose(): CameraPose | null {
@@ -3737,18 +3827,24 @@ export default class SpatialPortfolio {
 
     private returnToRoom(updateHistory = true) {
         if (!this.focusedKey) return;
+        const wasMobile = this.mobileMonitorActive;
         this.setFreeOrbitEnabled(false);
         this.state = 'returning-room';
         this.setHotspotEmphasis(this.focusedKey, false);
         this.focusedKey = null;
         this.hidePanel();
         this.backButtonEl.classList.remove('is-visible');
+        this.updateMonitorInteractivity();
         if (updateHistory && window.location.hash) {
             window.history.pushState({}, '', window.location.pathname + window.location.search);
         }
         this.moveCamera(CAMERA_POSES.room, REDUCED_MOTION ? 1 : 1100, () => {
             this.beginRoomOrbit();
             this.state = 'room-idle';
+            this.updateMonitorInteractivity();
+            if (wasMobile && !this.openComputerButtonEl.hidden) {
+                this.openComputerButtonEl.focus({ preventScroll: true });
+            }
         });
     }
 
@@ -4120,8 +4216,7 @@ export default class SpatialPortfolio {
         // The monitor shows the live OS when focused; skip the cyan glow so the
         // display never brightens on hover/click.
         if (key === 'door' || key === 'computer') return;
-        const group =
-            key === 'door' ? this.entryDoorRoot : this.hotspotGroups.get(key);
+        const group = this.hotspotGroups.get(key);
         if (!group) return;
         group.traverse((child) => {
             if (!(child instanceof THREE.Mesh)) return;
@@ -4185,6 +4280,14 @@ export default class SpatialPortfolio {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.cssRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.updateMonitorInteractivity();
+        if (this.focusedKey === 'computer' && !this.mobileMonitorActive) {
+            const pose = this.getComputerFocusPose();
+            if (pose) {
+                this.camera.position.copy(pose.position);
+                this.cameraTarget.copy(pose.target);
+            }
+        }
     }
 
     private updateMonitorScreen() {

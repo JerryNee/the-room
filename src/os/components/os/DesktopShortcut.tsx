@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import getIconByName, { IconName } from '../../assets/icons';
 import { Icon } from '../general';
 
@@ -16,85 +16,64 @@ const DesktopShortcut: React.FC<DesktopShortcutProps> = ({
     onOpen,
 }) => {
     const [isSelected, setIsSelected] = useState(false);
-    const [shortcutId, setShortcutId] = useState('');
     const [lastSelected, setLastSelected] = useState(false);
-    const containerRef = useRef<any>();
-
-    const [scaledStyle, setScaledStyle] = useState({});
-
+    const containerRef = useRef<HTMLButtonElement>(null);
+    const doubleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const requiredIcon = getIconByName(icon) as unknown as string;
-    const [doubleClickTimerActive, setDoubleClickTimerActive] = useState(false);
+    const shortcutId = `desktop-shortcut-${shortcutName.replace(/\s/g, '')}`;
 
-    const getShortcutId = useCallback(() => {
-        const shortcutId = shortcutName.replace(/\s/g, '');
-        return `desktop-shortcut-${shortcutId}`;
-    }, [shortcutName]);
-
-    useEffect(() => {
-        setShortcutId(getShortcutId());
-    }, [shortcutName, getShortcutId]);
+    const isMobileViewport = () => window.matchMedia(
+        '(max-width: 768px), (max-width: 1024px) and (pointer: coarse)'
+    ).matches;
 
     useEffect(() => {
-        if (containerRef.current && Object.keys(scaledStyle).length === 0) {
-            setScaledStyle({
-                transformOrigin: 'center',
-                transform: 'scale(1)',
-                left: 0,
-                top: 0,
-                // transform: 'scale(1.5)',
-                // left: boundingBox.width / 4,
-                // top: boundingBox.height / 4,
-            });
-        }
-    }, [scaledStyle]);
-
-    const handleClickOutside = useCallback(
-        (event: MouseEvent) => {
-            // @ts-ignore
-            const targetId = event.target.id;
-            if (targetId !== shortcutId) {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!containerRef.current?.contains(event.target as Node)) {
                 setIsSelected(false);
-            }
-            if (!isSelected && lastSelected) {
                 setLastSelected(false);
             }
-        },
-        [isSelected, setIsSelected, setLastSelected, lastSelected, shortcutId]
-    );
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            if (doubleClickTimer.current) clearTimeout(doubleClickTimer.current);
+        };
+    }, []);
 
-    const handleClickShortcut = useCallback(() => {
-        if (doubleClickTimerActive) {
-            onOpen && onOpen();
+    // The 3D desktop forwards mouse events; preserve its two-press activation.
+    const handleMouseDown = () => {
+        if (isMobileViewport()) return;
+        if (doubleClickTimer.current) {
+            clearTimeout(doubleClickTimer.current);
+            doubleClickTimer.current = null;
             setIsSelected(false);
-            setDoubleClickTimerActive(false);
+            onOpen();
             return;
         }
         setIsSelected(true);
         setLastSelected(true);
-        setDoubleClickTimerActive(true);
-        // set double click timer
-        setTimeout(() => {
-            setDoubleClickTimerActive(false);
+        doubleClickTimer.current = setTimeout(() => {
+            doubleClickTimer.current = null;
         }, 300);
-    }, [doubleClickTimerActive, setIsSelected, onOpen]);
+    };
 
-    useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isSelected, handleClickOutside]);
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        // Native click allows a touch scroll to cancel before launching an app.
+        if (isMobileViewport() || event.detail === 0) onOpen();
+    };
 
     return (
-        <div
-            id={`${shortcutId}`}
-            style={Object.assign({}, styles.appShortcut, scaledStyle)}
-            onMouseDown={handleClickShortcut}
+        <button
+            type="button"
+            className="os-shortcut"
+            id={shortcutId}
+            style={styles.appShortcut}
+            onMouseDown={handleMouseDown}
+            onClick={handleClick}
             ref={containerRef}
         >
-            <div id={`${shortcutId}`} style={styles.iconContainer}>
+            <div style={styles.iconContainer}>
                 <div
-                    id={`${shortcutId}`}
                     className="desktop-shortcut-icon"
                     style={Object.assign(
                         {},
@@ -115,7 +94,6 @@ const DesktopShortcut: React.FC<DesktopShortcutProps> = ({
                         ? 'shortcut-border'
                         : ''
                 }
-                id={`${shortcutId}`}
                 style={
                     isSelected
                         ? {
@@ -126,7 +104,6 @@ const DesktopShortcut: React.FC<DesktopShortcutProps> = ({
                 }
             >
                 <p
-                    id={`${shortcutId}`}
                     style={Object.assign(
                         {},
                         styles.shortcutText,
@@ -136,12 +113,19 @@ const DesktopShortcut: React.FC<DesktopShortcutProps> = ({
                     {shortcutName}
                 </p>
             </div>
-        </div>
+        </button>
     );
 };
 
 const styles: StyleSheetCSS = {
     appShortcut: {
+        display: 'flex',
+        background: 'transparent',
+        border: 0,
+        padding: 0,
+        font: 'inherit',
+        color: 'inherit',
+        cursor: 'pointer',
         position: 'absolute',
         width: 74,
         justifyContent: 'center',

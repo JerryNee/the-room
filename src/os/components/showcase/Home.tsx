@@ -14,12 +14,12 @@ const Home: React.FC<HomeProps> = (props) => {
     };
 
     return (
-        <div style={styles.page}>
-            <div style={styles.header}>
-                <h1 style={styles.name}>Jianwei Ni</h1>
+        <div className="showcase-home" style={styles.page}>
+            <div className="showcase-home__header" style={styles.header}>
+                <h1 className="showcase-home__name" style={styles.name}>Jianwei Ni</h1>
                 <h2>CS & Statistics @ UIUC</h2>
             </div>
-            <div style={styles.buttons}>
+            <div className="showcase-home__links" style={styles.buttons}>
                 <Link containerStyle={styles.link} to="about" text="ABOUT" />
                 <Link
                     containerStyle={styles.link}
@@ -37,7 +37,7 @@ const Home: React.FC<HomeProps> = (props) => {
                     text="CONTACT"
                 />
             </div>
-            <div style={styles.forHireContainer} onMouseDown={goToContact}>
+            <div className="showcase-home__footer" style={styles.forHireContainer} onMouseDown={goToContact}>
                 {/* <img src={forhire} alt="" /> */}
             </div>
         </div>

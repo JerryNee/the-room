@@ -179,6 +179,108 @@ body {
     cursor: pointer;
 }
 
+/* On small/touch screens the same iframe becomes a native, readable desktop.
+   Override the renderer's inline camera transforms without moving the iframe. */
+#css.is-mobile-monitor {
+    --computer-bar-height: calc(56px + env(safe-area-inset-top, 0px));
+    background: #edf2f7;
+    cursor: auto;
+}
+
+#css.is-mobile-monitor .v2-css3d {
+    position: absolute;
+    top: var(--computer-bar-height);
+    width: 100% !important;
+    height: calc(100% - var(--computer-bar-height)) !important;
+    perspective: none !important;
+}
+
+#css.is-mobile-monitor .v2-css3d > div {
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    transform-style: flat !important;
+}
+
+#css.is-mobile-monitor .v2-monitor-screen {
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    box-shadow: none;
+    transition: none;
+}
+
+#css.is-mobile-monitor .v2-monitor-screen::before,
+#css.is-mobile-monitor .v2-monitor-screen::after {
+    display: none;
+}
+
+#css.is-mobile-monitor .v2-monitor-iframe {
+    filter: none;
+    transform: none;
+    touch-action: auto;
+}
+
+.v2-mobile-monitor-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(6px + env(safe-area-inset-top, 0px))
+        max(16px, env(safe-area-inset-right, 0px)) 6px
+        max(12px, env(safe-area-inset-left, 0px));
+    background: #f4f7fa;
+    border-bottom: 1px solid #cfd6df;
+    pointer-events: auto;
+    color: #172123;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.v2-mobile-monitor-bar button,
+.v2-open-computer {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid #c5ced9;
+    border-radius: 10px;
+    background: #fff;
+    color: #172123;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.v2-open-computer {
+    position: absolute;
+    bottom: max(24px, env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    pointer-events: auto;
+}
+
+.v2-mobile-monitor-bar button:focus-visible,
+.v2-open-computer:focus-visible {
+    outline: 3px solid #0067d8;
+    outline-offset: 3px;
+}
+
+.v2-mobile-monitor-bar[hidden],
+.v2-open-computer[hidden] {
+    display: none;
+}
+
 .v2-threshold-flare {
     position: absolute;
     inset: 0;
@@ -548,7 +650,7 @@ body {
     }
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
     .v2-back-button {
         top: 112px;
         left: 24px;
@@ -582,14 +684,14 @@ body {
     }
 
     .v2-room-hud-button {
-        width: 19.5px;
-        min-width: 19.5px;
-        height: 19.5px;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
     }
 
     .v2-room-hud-button img {
-        max-width: 8px;
-        max-height: 8px;
+        max-width: 16px;
+        max-height: 16px;
     }
 }
 

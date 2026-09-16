@@ -18,7 +18,7 @@ const JianwordleApp: React.FC<JianwordleAppProps> = (props) => {
             minimizeWindow={props.onMinimize}
             bottomLeftText={'© Jianwei Ni'}
         >
-            <div className="site-page">
+            <div className="site-page wordle-page">
                 <Wordle />
             </div>
         </Window>

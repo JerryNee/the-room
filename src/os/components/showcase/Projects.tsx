@@ -24,23 +24,24 @@ const ProjectBox: React.FC<ProjectBoxProps> = ({
     const navigation = useNavigate();
 
     return (
-        <div
-            onMouseDown={() => navigation(`/projects/${route}`)}
-            className="big-button-container"
+        <button
+            type="button"
+            onClick={() => navigation(`/projects/${route}`)}
+            className="big-button-container showcase-project-link"
             style={styles.projectLink}
         >
-            <div style={styles.projectLinkLeft}>
+            <div className="showcase-project-link__content" style={styles.projectLinkLeft}>
                 <img
                     src={icon}
                     style={Object.assign({}, styles.projectLinkImage, iconStyle)}
                     alt=""
                 />
-                <div style={styles.projectText}>
+                <div className="showcase-project-link__text" style={styles.projectText}>
                     <h1 style={{ fontSize: 48 }}>{title}</h1>
                     <h3>{subtitle}</h3>
                 </div>
             </div>
-        </div>
+        </button>
     );
 };
 
@@ -90,6 +91,12 @@ const styles: StyleSheetCSS = {
         flex: 1,
     },
     projectLink: {
+        display: 'flex',
+        background: 'transparent',
+        border: 0,
+        color: 'inherit',
+        font: 'inherit',
+        textAlign: 'left',
         marginBottom: 24,
         cursor: 'pointer',
         width: '100%',

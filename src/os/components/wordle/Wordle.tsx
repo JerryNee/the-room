@@ -59,9 +59,10 @@ const KeyboardLetter: React.FC<KeyboardLetterProps> = ({
     };
 
     return (
-        <div
-            onMouseDown={handleClick}
-            className="site-button"
+        <button
+            type="button"
+            onClick={handleClick}
+            className="site-button wordle-key"
             style={Object.assign(
                 {},
                 styles.letterBox,
@@ -71,7 +72,7 @@ const KeyboardLetter: React.FC<KeyboardLetterProps> = ({
             )}
         >
             <p>{letter}</p>
-        </div>
+        </button>
     );
 };
 
@@ -104,7 +105,7 @@ const GuessLetter: React.FC<GuessLetterProps> = ({
 
     return (
         <div
-            className="button-border"
+            className="button-border wordle-tile"
             style={Object.assign(
                 {},
                 styles.guessLetterBox,
@@ -271,12 +272,13 @@ const Wordle: React.FC<WordleProps> = () => {
     }, [guesses]);
 
     return (
-        <div style={styles.container}>
-            <div style={styles.header}>
+        <div className="wordle-game" style={styles.container}>
+            <div className="wordle-game__header" style={styles.header}>
                 <h2>Jerryordle</h2>
                 <p>Wordle but with a Jerry based twist.</p>
             </div>
             <motion.div
+                className="wordle-game__result"
                 variants={gameOverAnimations}
                 animate={gameOver ? 'show' : 'hidden'}
                 initial={false}
@@ -298,17 +300,18 @@ const Wordle: React.FC<WordleProps> = () => {
                     noClear={true}
                 />
                 <br />
-                <div className="site-button" onMouseDown={restart}>
+                <button type="button" className="site-button" onClick={restart}>
                     Restart Game
-                </div>
+                </button>
             </motion.div>
             <motion.div
+                className="wordle-game__body"
                 variants={gameAnimations}
                 animate={!gameOver ? 'show' : 'hidden'}
                 initial={false}
                 style={styles.gameContainer}
             >
-                <div style={styles.playArea}>
+                <div className="wordle-game__board" style={styles.playArea}>
                     {[...Array(6)].map((e, i) => (
                         <GuessWord
                             key={i}
@@ -319,9 +322,9 @@ const Wordle: React.FC<WordleProps> = () => {
                         />
                     ))}
                 </div>
-                <div style={styles.keyboardContainer}>
+                <div className="wordle-keyboard" style={styles.keyboardContainer}>
                     {ROWS.map((row) => (
-                        <div style={styles.keyboardRow} key={`row-${row[0]}`}>
+                        <div className="wordle-keyboard__row" style={styles.keyboardRow} key={`row-${row[0]}`}>
                             {row.map((letter) => (
                                 <KeyboardLetter
                                     key={letter}
@@ -424,6 +427,7 @@ const styles: StyleSheetCSS = {
         marginBottom: 10,
     },
     letterBox: {
+        display: 'flex',
         padding: 12,
         paddingTop: 16,
         minWidth: 42,

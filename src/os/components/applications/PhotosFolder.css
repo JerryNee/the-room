@@ -693,3 +693,36 @@
         transform: scale(1);
     }
 }
+
+@media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
+    .photos-app,
+    .photos-view,
+    .photos-library-tools {
+        min-width: 0;
+    }
+
+    .photos-library-tools {
+        justify-content: flex-start;
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .photos-sort-button,
+    .photos-back-button {
+        min-height: 44px;
+    }
+
+    .photos-lightbox-close {
+        height: 44px;
+        width: 44px;
+    }
+
+    .photos-lightbox-stage {
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+    }
+
+    .photos-lightbox-nav {
+        height: 56px;
+        width: 44px;
+    }
+}

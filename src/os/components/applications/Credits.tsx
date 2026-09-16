@@ -83,8 +83,8 @@ const Credits: React.FC<CreditsProps> = (props) => {
             bottomLeftText={'© Jianwei Ni'}
         >
             <div
-                onMouseDown={nextSlide}
-                className="site-page"
+                onClick={nextSlide}
+                className="site-page credits-page"
                 style={styles.credits}
             >
                 <h2>Credits</h2>
@@ -92,7 +92,7 @@ const Credits: React.FC<CreditsProps> = (props) => {
                 <br />
                 <br />
                 <br />
-                <div style={styles.slideContainer}>
+                <div className="credits-page__slides" style={styles.slideContainer}>
                     {
                         <motion.div
                             animate={{ opacity: 1, y: -20 }}
@@ -105,7 +105,7 @@ const Credits: React.FC<CreditsProps> = (props) => {
                             </h3>
                             {CREDITS[currentSlide].rows.map((row, i) => {
                                 return (
-                                    <div key={`row-${i}`} style={styles.row}>
+                                    <div className="credits-page__row" key={`row-${i}`} style={styles.row}>
                                         <p>{row[0]}</p>
                                         <p>{row[1]}</p>
                                     </div>

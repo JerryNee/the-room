@@ -9,6 +9,14 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
     const location = useLocation();
     const [projectsExpanded, setProjectsExpanded] = useState(false);
     const [isHome, setIsHome] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const currentSection = location.pathname.includes('/projects/')
+        ? ({ 'xr-ai': 'XR & AI', publications: 'Publications', awards: 'Awards' }[
+              location.pathname.split('/').pop() || ''
+          ] || 'Projects')
+        : ({ about: 'About', experience: 'Experience', projects: 'Projects', contact: 'Contact' }[
+              location.pathname.split('/').pop() || ''
+          ] || 'Portfolio');
 
     const navigate = useNavigate();
     const goToContact = () => {
@@ -16,6 +24,7 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
     };
 
     useEffect(() => {
+        setMobileMenuOpen(false);
         if (location.pathname.includes('/projects')) {
             setProjectsExpanded(true);
         } else {
@@ -30,13 +39,24 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
     }, [location.pathname]);
 
     return !isHome ? (
-        <div style={styles.navbar}>
-            <div style={styles.header}>
+        <nav className={`showcase-nav${mobileMenuOpen ? ' is-expanded' : ''}`} style={styles.navbar} aria-label="Portfolio sections">
+            <button
+                type="button"
+                className="showcase-nav__toggle"
+                aria-label="Portfolio sections"
+                aria-controls="portfolio-section-links"
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+                <span>{currentSection}</span>
+                <span>Sections {mobileMenuOpen ? '−' : '+'}</span>
+            </button>
+            <div className="showcase-nav__header" style={styles.header}>
                 <h1 style={styles.headerText}>Jianwei</h1>
                 <h1 style={styles.headerText}>Ni</h1>
                 <h3 style={styles.headerShowcase}>Portfolio</h3>
             </div>
-            <div style={styles.links}>
+            <div id="portfolio-section-links" className="showcase-nav__links" style={styles.links}>
                 <Link containerStyle={styles.link} to="" text="HOME" />
                 <Link containerStyle={styles.link} to="about" text="ABOUT" />
                 <Link
@@ -56,7 +76,7 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
                 {
                     // if current path contains projects
                     projectsExpanded && (
-                        <div style={styles.insetLinks}>
+                        <div className="showcase-nav__subnav" style={styles.insetLinks}>
                             <Link
                                 containerStyle={styles.insetLink}
                                 to="projects/xr-ai"
@@ -81,11 +101,11 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
                     text="CONTACT"
                 />
             </div>
-            <div style={styles.spacer} />
-            <div style={styles.forHireContainer} onMouseDown={goToContact}>
+            <div className="showcase-nav__spacer" style={styles.spacer} />
+            <div className="showcase-nav__footer" style={styles.forHireContainer} onMouseDown={goToContact}>
                 {/* <img src={forHire} style={styles.image} alt="" /> */}
             </div>
-        </div>
+        </nav>
     ) : (
         <></>
     );
@@ -93,6 +113,7 @@ const VerticalNavbar: React.FC<VerticalNavbarProps> = (props) => {
 
 const styles: StyleSheetCSS = {
     navbar: {
+        display: 'flex',
         width: 300,
         height: '100%',
         flexDirection: 'column',

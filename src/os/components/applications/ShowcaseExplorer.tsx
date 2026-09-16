@@ -1,4 +1,5 @@
 import React from 'react';
+import '../../mobile-content.css';
 import {
     BrowserRouter as Router,
     Navigate,
@@ -36,7 +37,7 @@ const ShowcaseExplorer: React.FC<ShowcaseExplorerProps> = (props) => {
             bottomLeftText={'© Jianwei Ni'}
         >
             <Router basename="/os">
-                <div className="site-page">
+                <div className="site-page showcase-page">
                     <VerticalNavbar />
                     <Routes>
                         <Route path="/" element={<Home />} />

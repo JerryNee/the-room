@@ -89,7 +89,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = (props) => {
             style={styles.musicPlayerContainer}
             className="music-controller-container "
         >
-            <div style={styles.playerStart}>
+            <div className="music-player__disc" style={styles.playerStart}>
                 <div>
                     <motion.img
                         variants={vars}
@@ -101,8 +101,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = (props) => {
                     />
                 </div>
             </div>
-            <div style={styles.playerInfo}>
-                <div style={styles.progressContainer}>
+            <div className="music-player__body" style={styles.playerInfo}>
+                <div className="music-player__progress" style={styles.progressContainer}>
                     <p style={styles.time}>
                         <b>{formatTime(currentTime)}</b>
                     </p>
@@ -119,45 +119,51 @@ const MusicPlayer: React.FC<MusicPlayerProps> = (props) => {
                         <b>{duration === 1 ? '..:..' : formatTime(duration)}</b>
                     </p>
                 </div>
-                <div style={styles.playerBottom}>
+                <div className="music-player__details" style={styles.playerBottom}>
                     <div style={styles.info}>
                         <h3>{props.title}</h3>
                         <p>{props.subtitle}</p>
                     </div>
-                    <div style={styles.playerControls}>
-                        <div
+                    <div className="music-player__controls" style={styles.playerControls}>
+                        <button
+                            type="button"
+                            aria-label={`Restart ${props.title}`}
                             style={styles.controlButton}
                             className="site-button"
-                            onMouseDown={fastRewind}
+                            onClick={fastRewind}
                         >
                             <img
                                 src={RewindIcon}
                                 style={styles.controlIcon}
                                 alt=""
                             />
-                        </div>
-                        <div
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={`${isPlaying ? 'Pause' : 'Play'} ${props.title}`}
                             style={styles.controlButton}
                             className="site-button"
-                            onMouseDown={togglePlay}
+                            onClick={togglePlay}
                         >
                             <img
                                 src={isPlaying ? PauseIcon : PlayIcon}
                                 style={styles.controlIcon}
                                 alt=""
                             />
-                        </div>
-                        <div
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={`Skip forward in ${props.title}`}
                             style={styles.controlButton}
                             className="site-button"
-                            onMouseDown={fastForward}
+                            onClick={fastForward}
                         >
                             <img
                                 src={ForwardIcon}
                                 style={styles.controlIcon}
                                 alt=""
                             />
-                        </div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -235,6 +241,7 @@ const styles: StyleSheetCSS = {
         width: 96,
     },
     controlButton: {
+        display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
     },

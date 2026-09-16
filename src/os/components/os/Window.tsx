@@ -23,9 +23,9 @@ export interface WindowProps {
 }
 
 const Window: React.FC<WindowProps> = (props) => {
-    const windowRef = useRef<any>(null);
+    const windowRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<any>(null);
-    const contentRef = useRef<any>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     const dragProps = useRef<{
         dragStartX: any;
@@ -136,12 +136,18 @@ const Window: React.FC<WindowProps> = (props) => {
     }, [props.onHeightChange, contentHeight]); // eslint-disable-line
 
     useEffect(() => {
-        setContentWidth(contentRef.current.getBoundingClientRect().width);
-    }, [width]);
-
-    useEffect(() => {
-        setContentHeight(contentRef.current.getBoundingClientRect().height);
-    }, [height]);
+        const content = contentRef.current;
+        if (!content) return;
+        const updateContentSize = () => {
+            setContentWidth(content.clientWidth);
+            setContentHeight(content.clientHeight);
+        };
+        updateContentSize();
+        // CSS controls mobile dimensions, including orientation changes.
+        const observer = new ResizeObserver(updateContentSize);
+        observer.observe(content);
+        return () => observer.disconnect();
+    }, []);
 
     const maximize = () => {
         if (isMaximized) {
@@ -196,6 +202,9 @@ const Window: React.FC<WindowProps> = (props) => {
     return (
         <div onMouseDown={onWindowInteract} style={styles.container}>
             <div
+                className="os-window"
+                role="dialog"
+                aria-label={props.windowTitle || 'Application window'}
                 style={Object.assign({}, styles.window, {
                     width,
                     height,
@@ -204,14 +213,15 @@ const Window: React.FC<WindowProps> = (props) => {
                 })}
                 ref={windowRef}
             >
-                <div style={styles.windowBorderOuter}>
-                    <div style={styles.windowBorderInner}>
+                <div className="os-window-border" style={styles.windowBorderOuter}>
+                    <div className="os-window-inner" style={styles.windowBorderInner}>
                         <div
+                            className="os-window-drag-handle"
                             style={styles.dragHitbox}
                             onMouseDown={startDrag}
                         ></div>
                         <div
-                            className={props.rainbow ? 'rainbow-wrapper' : ''}
+                            className={`os-window-titlebar ${props.rainbow ? 'rainbow-wrapper' : ''}`}
                             style={Object.assign(
                                 {},
                                 styles.topBar,
@@ -222,10 +232,12 @@ const Window: React.FC<WindowProps> = (props) => {
                             )}
                         >
                             <div style={styles.windowHeader}>
-                                <div style={styles.windowTopButtons}>
+                                <div className="os-window-controls" style={styles.windowTopButtons}>
                                     <button
+                                        type="button"
+                                        className="os-window-control os-window-control-close"
                                         aria-label="Close window"
-                                        onMouseDown={(event) =>
+                                        onClick={(event) =>
                                             handleControl(event, props.closeWindow)
                                         }
                                         style={Object.assign(
@@ -233,10 +245,12 @@ const Window: React.FC<WindowProps> = (props) => {
                                             styles.windowControl,
                                             styles.closeControl
                                         )}
-                                    />
+                                    ><span aria-hidden="true">×</span></button>
                                     <button
+                                        type="button"
+                                        className="os-window-control os-window-control-minimize"
                                         aria-label="Minimize window"
-                                        onMouseDown={(event) =>
+                                        onClick={(event) =>
                                             handleControl(event, props.minimizeWindow)
                                         }
                                         style={Object.assign(
@@ -244,10 +258,12 @@ const Window: React.FC<WindowProps> = (props) => {
                                             styles.windowControl,
                                             styles.minimizeControl
                                         )}
-                                    />
+                                    ><span aria-hidden="true">−</span></button>
                                     <button
+                                        type="button"
+                                        className="os-window-control os-window-control-maximize"
                                         aria-label="Maximize window"
-                                        onMouseDown={(event) =>
+                                        onClick={(event) =>
                                             handleControl(event, maximize)
                                         }
                                         style={Object.assign(
@@ -255,7 +271,7 @@ const Window: React.FC<WindowProps> = (props) => {
                                             styles.windowControl,
                                             styles.maximizeControl
                                         )}
-                                    />
+                                    ><span aria-hidden="true">+</span></button>
                                 </div>
                                 {props.windowBarIcon ? (
                                     <Icon
@@ -283,18 +299,20 @@ const Window: React.FC<WindowProps> = (props) => {
                             </div>
                         </div>
                         <div
+                            className="os-window-content-outer"
                             style={Object.assign({}, styles.contentOuter, {
                                 // zIndex: isDragging || isResizing ? 0 : 100,
                             })}
                         >
-                            <div style={styles.contentInner}>
-                                <div style={styles.content} ref={contentRef}>
+                            <div className="os-window-content-inner" style={styles.contentInner}>
+                                <div className="os-window-content" style={styles.content} ref={contentRef}>
                                     {props.children}
                                 </div>
                             </div>
                         </div>
                         <div
                             onMouseDown={startResize}
+                            className="os-window-resize-handle"
                             style={styles.resizeHitbox}
                         ></div>
                         <div style={styles.bottomBar}>
@@ -431,6 +449,7 @@ const styles: StyleSheetCSS = {
         cursor: 'nwse-resize',
     },
     topBar: {
+        flexShrink: 0,
         background:
             'linear-gradient(180deg, rgba(255,255,255,0.86), rgba(235,238,242,0.72))',
         width: '100%',

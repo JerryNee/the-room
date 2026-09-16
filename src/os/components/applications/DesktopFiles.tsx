@@ -384,7 +384,7 @@ const FileWindow: React.FC<FileWindowProps> = ({
             minimizeWindow={props.onMinimize}
             bottomLeftText={bottomLeftText}
         >
-            <div style={styles.page}>{children}</div>
+            <div className="desktop-file-page" style={styles.page}>{children}</div>
         </Window>
     );
 };
@@ -407,7 +407,7 @@ export const ThisComputer: React.FC<WindowAppProps> = (props) => (
             A compact desktop surface for portfolio browsing, project notes,
             resume access, and the objects that live inside Jerry's room.
         </p>
-        <div style={styles.infoGrid}>
+        <div className="desktop-file-info" style={styles.infoGrid}>
             <span>Owner</span>
             <b>{name}</b>
             <span>School</span>
@@ -441,16 +441,16 @@ export const ResumePdf: React.FC<WindowAppProps> = (props) => (
         height={640}
         bottomLeftText="/resume.pdf"
     >
-        <div style={styles.toolbar}>
+        <div className="desktop-file-toolbar" style={styles.toolbar}>
             <h2 style={styles.title}>Resume.pdf</h2>
             <button
                 className="site-button"
-                onMouseDown={() => openExternal('/resume.pdf')}
+                onClick={() => openExternal('/resume.pdf')}
             >
                 Open PDF
             </button>
         </div>
-        <iframe title="Resume PDF" src="/resume.pdf" style={styles.pdfFrame} />
+        <iframe className="desktop-file-pdf" title="Resume PDF" src="/resume.pdf" style={styles.pdfFrame} />
     </FileWindow>
 );
 
@@ -476,7 +476,7 @@ export const ProjectsFolder: React.FC<WindowAppProps> = (props) => (
                     {project.link.href && (
                         <button
                             className="site-button"
-                            onMouseDown={() => openExternal(project.link.href)}
+                            onClick={() => openExternal(project.link.href)}
                         >
                             Open Link
                         </button>
@@ -528,25 +528,25 @@ export const ContactCard: React.FC<WindowAppProps> = (props) => {
         >
             <h2 style={styles.title}>{name}</h2>
             <p style={styles.lead}>{headline}</p>
-            <div style={styles.infoGrid}>
+            <div className="desktop-file-info" style={styles.infoGrid}>
                 <span>Email</span>
                 <button
                     className="site-button"
-                    onMouseDown={() => openExternal(`mailto:${email}`)}
+                    onClick={() => openExternal(`mailto:${email}`)}
                 >
                     {email}
                 </button>
                 <span>GitHub</span>
                 <button
                     className="site-button"
-                    onMouseDown={() => openExternal(`https://github.com/${githubUsername}`)}
+                    onClick={() => openExternal(`https://github.com/${githubUsername}`)}
                 >
                     github.com/{githubUsername}
                 </button>
                 <span>LinkedIn</span>
                 <button
                     className="site-button"
-                    onMouseDown={() => linkedin && openExternal(linkedin)}
+                    onClick={() => linkedin && openExternal(linkedin)}
                     disabled={!linkedin}
                 >
                     Open LinkedIn

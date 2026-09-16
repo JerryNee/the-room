@@ -80,9 +80,9 @@ const Contact: React.FC<ContactProps> = (props) => {
 
     return (
         <div className="site-page-content">
-            <div style={styles.header}>
+            <div className="showcase-contact__header" style={styles.header}>
                 <h1>Contact</h1>
-                <div style={styles.socials}>
+                <div className="showcase-contact__socials" style={styles.socials}>
                     <SocialBox
                         icon={ghIcon}
                         link={'https://github.com/JerryNee'}
@@ -169,13 +169,13 @@ const Contact: React.FC<ContactProps> = (props) => {
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                     />
-                    <div style={styles.buttons}>
+                    <div className="showcase-contact__actions" style={styles.buttons}>
                         <button
                             className="site-button"
                             style={styles.button}
                             type="submit"
                             disabled={!isFormValid || isLoading}
-                            onMouseDown={submitForm}
+                            onClick={submitForm}
                         >
                             {!isLoading ? (
                                 'Send Message'
@@ -183,7 +183,7 @@ const Contact: React.FC<ContactProps> = (props) => {
                                 <p className="loading">Sending</p>
                             )}
                         </button>
-                        <div style={styles.formInfo}>
+                        <div className="showcase-contact__info" style={styles.formInfo}>
                             <p
                                 style={Object.assign(
                                     {},

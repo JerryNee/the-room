@@ -77,7 +77,10 @@ const GameTracker: React.FC<GameTrackerProps> = (props) => {
     useEffect(() => {
         if (!selectedGame) return;
         const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') setSelectedGame(null);
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setSelectedGame(null);
+            }
         };
         window.addEventListener('keydown', closeOnEscape);
         return () => window.removeEventListener('keydown', closeOnEscape);

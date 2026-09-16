@@ -17,6 +17,7 @@ import Toolbar from './Toolbar';
 import DesktopShortcut, { DesktopShortcutProps } from './DesktopShortcut';
 import { IconName } from '../../assets/icons';
 import Credits from '../applications/Credits';
+import '../../mobile-shell.css';
 
 export interface DesktopProps {}
 
@@ -220,7 +221,7 @@ const Desktop: React.FC<DesktopProps> = (props) => {
             setWindows((prevState) => ({
                 ...prevState,
                 [key]: {
-                    zIndex: getHighestZIndex() + 1,
+                    zIndex: Math.max(0, ...Object.values(prevState).map((window) => window.zIndex)) + 1,
                     minimized: false,
                     component: element,
                     name: APPLICATIONS[key].name,
@@ -228,7 +229,7 @@ const Desktop: React.FC<DesktopProps> = (props) => {
                 },
             }));
         },
-        [getHighestZIndex]
+        []
     );
 
     const getShortcutPosition = (index: number) => {
@@ -241,7 +242,7 @@ const Desktop: React.FC<DesktopProps> = (props) => {
     };
 
     return !shutdown ? (
-        <div style={styles.desktop}>
+        <div className="os-desktop" style={styles.desktop}>
             {/* For each window in windows, loop over and render  */}
             {Object.keys(windows).map((key) => {
                 const element = windows[key].component;
@@ -249,6 +250,8 @@ const Desktop: React.FC<DesktopProps> = (props) => {
                 return (
                     <div
                         key={`win-${key}`}
+                        className="os-window-layer"
+                        aria-hidden={windows[key].minimized || undefined}
                         style={Object.assign(
                             {},
                             { zIndex: windows[key].zIndex },
@@ -263,10 +266,11 @@ const Desktop: React.FC<DesktopProps> = (props) => {
                     </div>
                 );
             })}
-            <div style={styles.shortcuts}>
+            <div className="os-shortcuts" style={styles.shortcuts}>
                 {shortcuts.map((shortcut, i) => {
                     return (
                         <div
+                            className="os-shortcut-position"
                             style={Object.assign(
                                 {},
                                 styles.shortcutContainer,
@@ -322,6 +326,7 @@ const styles: StyleSheetCSS = {
     minimized: {
         pointerEvents: 'none',
         opacity: 0,
+        visibility: 'hidden',
     },
 };
 

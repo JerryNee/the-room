@@ -8,7 +8,7 @@ export interface ResumeDownloadProps {
 
 const ResumeDownload: React.FC<ResumeDownloadProps> = ({ altText }) => {
     return (
-        <div style={styles.resumeContainer}>
+        <div className="showcase-resume" style={styles.resumeContainer}>
             <img style={styles.resumePrinter} alt="" src={printer} />
             <div style={styles.resumeContainerText}>
                 <h3>{altText ? altText : 'Looking for my resume?'}</h3>
