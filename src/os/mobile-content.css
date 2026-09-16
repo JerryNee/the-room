@@ -466,4 +466,60 @@
     .credits-page__row > p:last-child {
         opacity: 0.78;
     }
+
+    @media (max-height: 450px) {
+        /* Reserve the collapsed menu's space so opening its overlay does not
+           resize the document underneath or clamp the reading position. */
+        .showcase-page:has(> .showcase-nav) {
+            box-sizing: border-box;
+            padding-top: 44px;
+        }
+
+        .showcase-nav {
+            position: absolute !important;
+            top: 0;
+            left: 0;
+            height: 44px !important;
+            padding: 0 8px !important;
+            border-bottom: 0;
+            background: #fff;
+            box-shadow: inset 0 -1px 0 rgb(23 33 35 / 0.14);
+            z-index: 20;
+        }
+
+        .showcase-nav.is-expanded {
+            inset: 0;
+            height: 100% !important;
+            max-height: 100%;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+        }
+
+        .showcase-nav.is-expanded .showcase-nav__links {
+            padding-bottom: 8px;
+        }
+
+        .showcase-page .site-page-content {
+            padding: 10px 12px 16px;
+        }
+
+        .showcase-page .text-block {
+            margin-top: 8px;
+            margin-bottom: 16px;
+        }
+
+        .showcase-home {
+            padding: 12px;
+        }
+
+        .showcase-home__header {
+            margin: 0 0 12px !important;
+        }
+
+        .desktop-file-page {
+            padding: 10px 12px !important;
+        }
+    }
 }

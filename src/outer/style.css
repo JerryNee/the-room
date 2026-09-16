@@ -132,63 +132,40 @@ body {
     cursor: pointer;
 }
 
-/* On small/touch screens the same iframe becomes a native, readable desktop.
-   Override the renderer's inline camera transforms without moving the iframe. */
-#css.is-mobile-monitor {
-    --computer-bar-height: calc(56px + env(safe-area-inset-top, 0px));
-    background: #edf2f7;
-    cursor: auto;
-}
-
-#css.is-mobile-monitor .v2-css3d {
-    position: absolute;
-    top: var(--computer-bar-height);
-    width: 100% !important;
-    height: calc(100% - var(--computer-bar-height)) !important;
+/* Project the mobile browsing surface with the WebGL camera's exact planar
+   matrix. Keep CSS3DRenderer's inline transforms intact for desktop restoration. */
+#css.is-projected-monitor .v2-css3d {
     perspective: none !important;
 }
 
-#css.is-mobile-monitor .v2-css3d > div {
-    width: 100% !important;
-    height: 100% !important;
+#css.is-projected-monitor .v2-css3d > div {
     transform: none !important;
     transform-style: flat !important;
 }
 
-#css.is-mobile-monitor .v2-monitor-screen {
-    inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    transform: none !important;
-    opacity: 1 !important;
+#css.is-projected-monitor .v2-monitor-screen {
+    transform: var(--monitor-projection) !important;
+    transform-origin: 0 0;
+    backface-visibility: visible;
     filter: none !important;
-    transition: none;
     touch-action: auto;
 }
 
-.v2-mobile-monitor-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: calc(56px + env(safe-area-inset-top, 0px));
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: calc(6px + env(safe-area-inset-top, 0px))
-        max(16px, env(safe-area-inset-right, 0px)) 6px
-        max(12px, env(safe-area-inset-left, 0px));
-    background: #f4f7fa;
-    border-bottom: 1px solid #cfd6df;
-    pointer-events: auto;
-    color: #172123;
-    font-size: 14px;
-    font-weight: 600;
+#css.is-projected-monitor .is-projection-hidden {
+    visibility: hidden !important;
 }
 
-.v2-mobile-monitor-bar button,
+.v2-monitor-hint {
+    position: absolute;
+    bottom: max(28px, env(safe-area-inset-bottom, 0px));
+    left: 16px;
+    right: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #172123;
+    text-shadow: 0 1px 3px #fff;
+}
+
 .v2-open-computer {
     min-height: 44px;
     padding: 0 16px;
@@ -212,13 +189,12 @@ body {
     pointer-events: auto;
 }
 
-.v2-mobile-monitor-bar button:focus-visible,
 .v2-open-computer:focus-visible {
     outline: 3px solid #0067d8;
     outline-offset: 3px;
 }
 
-.v2-mobile-monitor-bar[hidden],
+.v2-monitor-hint[hidden],
 .v2-open-computer[hidden] {
     display: none;
 }
@@ -709,5 +685,24 @@ body {
 
     100% {
         transform: translate(0.075px, 0.025px) scale(1, 1);
+    }
+}
+
+@media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
+    .is-mobile-computer-focused .v2-back-button {
+        top: auto;
+        bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 40px));
+        left: 50%;
+        transform: translateX(-50%);
+        min-height: 44px;
+        box-sizing: border-box;
+        background: #fff;
+        box-shadow: none;
+    }
+
+    @media (orientation: landscape) {
+        .is-mobile-computer-focused .v2-back-button {
+            bottom: max(8px, env(safe-area-inset-bottom, 0px));
+        }
     }
 }

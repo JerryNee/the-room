@@ -7,6 +7,7 @@ import {
     CSS3DObject,
     CSS3DRenderer,
 } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { getMonitorProjection } from './monitorProjection';
 
 type SceneState =
     | 'entry-door'
@@ -302,6 +303,7 @@ export default class SpatialPortfolio {
     private freeOrbitButtonEl: HTMLButtonElement;
     private freeOrbitIconEl: HTMLImageElement;
     private animationFrame: number | null;
+    private cameraTween: { stop: () => void } | null = null;
     private roomOrbitStartedAt: number;
     private roomOrbitPosition: THREE.Vector3;
     private roomOrbitTarget: THREE.Vector3;
@@ -321,8 +323,8 @@ export default class SpatialPortfolio {
     private monitorInputProxyEl: HTMLDivElement;
     private mobileMonitorQuery = window.matchMedia(MOBILE_MONITOR_QUERY);
     private mobileMonitorActive = false;
-    private mobileScrollPositions: { element: Element; top: number; left: number }[] = [];
-    private mobileMonitorBarEl: HTMLDivElement;
+    private monitorViewportSize = MONITOR_CSS_SIZE.clone();
+    private mobileMonitorHintEl: HTMLDivElement;
     private openComputerButtonEl: HTMLButtonElement;
     private monitorGlassMaterial: THREE.MeshBasicMaterial | null;
     private monitorDimmingMaterial: THREE.MeshBasicMaterial | null;
@@ -592,20 +594,10 @@ export default class SpatialPortfolio {
             this.returnToRoom();
         });
 
-        this.mobileMonitorBarEl = document.createElement('div');
-        this.mobileMonitorBarEl.className = 'v2-mobile-monitor-bar';
-        this.mobileMonitorBarEl.hidden = true;
-        const roomButton = document.createElement('button');
-        roomButton.type = 'button';
-        roomButton.textContent = '← Room';
-        roomButton.setAttribute('aria-label', 'Back to room');
-        roomButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            this.returnToRoom();
-        });
-        const computerTitle = document.createElement('span');
-        computerTitle.textContent = 'Jerry’s computer';
-        this.mobileMonitorBarEl.append(roomButton, computerTitle);
+        this.mobileMonitorHintEl = document.createElement('div');
+        this.mobileMonitorHintEl.className = 'v2-monitor-hint';
+        this.mobileMonitorHintEl.textContent = 'Rotate your phone for a wider screen';
+        this.mobileMonitorHintEl.hidden = true;
 
         this.openComputerButtonEl = document.createElement('button');
         this.openComputerButtonEl.type = 'button';
@@ -689,7 +681,7 @@ export default class SpatialPortfolio {
         root.appendChild(this.labelEl);
         root.appendChild(this.panelEl);
         root.appendChild(this.backButtonEl);
-        root.appendChild(this.mobileMonitorBarEl);
+        root.appendChild(this.mobileMonitorHintEl);
         root.appendChild(this.openComputerButtonEl);
         this.uiContainer.appendChild(root);
     }
@@ -751,32 +743,16 @@ export default class SpatialPortfolio {
             this.state === 'focus-computer';
 
         const mobile = interactive && this.mobileMonitorQuery.matches;
-        if (mobile !== this.mobileMonitorActive) {
-            if (!mobile) {
-                // Returning to the 1280px scene preview can clamp long mobile
-                // documents' scroll offsets. Restore them when reopened.
-                this.mobileScrollPositions = this.mobileMonitorQuery.matches
-                    ? Array.from(this.monitorIframe?.contentDocument?.querySelectorAll('*') || [])
-                          .filter((element) => element.scrollTop > 0 || element.scrollLeft > 0)
-                          .map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }))
-                    : [];
-            }
-            this.mobileMonitorActive = mobile;
-            // Flatten the existing CSS3D surface in place. Reparenting an iframe
-            // reloads its document and would discard open windows and scroll.
-            this.cssRoot.classList.toggle('is-mobile-monitor', mobile);
-            this.mobileMonitorBarEl.hidden = !mobile;
-            if (mobile) {
-                this.monitorIframe?.focus();
-                window.requestAnimationFrame(() => {
-                    if (!this.mobileMonitorActive) return;
-                    this.mobileScrollPositions.forEach(({ element, top, left }) => {
-                        if (element.isConnected) element.scrollTo(left, top);
-                    });
-                    this.mobileScrollPositions = [];
-                });
-            }
-        }
+        const enteringMobileComputer = mobile && !this.mobileMonitorActive;
+        this.mobileMonitorActive = mobile;
+        this.cssRoot.classList.toggle('is-projected-monitor', this.mobileMonitorQuery.matches);
+        this.uiContainer.classList.toggle('is-mobile-computer-focused', mobile);
+        this.mobileMonitorHintEl.hidden = !(mobile && window.innerHeight > window.innerWidth);
+        this.backButtonEl.classList.toggle(
+            'is-visible',
+            Boolean(this.focusedKey) && (this.focusedKey !== 'computer' || mobile)
+        );
+        if (enteringMobileComputer) this.monitorIframe?.focus({ preventScroll: true });
         this.openComputerButtonEl.hidden = !(
             this.mobileMonitorQuery.matches &&
             this.state === 'room-idle' &&
@@ -788,8 +764,8 @@ export default class SpatialPortfolio {
         this.monitorElement?.classList.toggle('is-interactive', interactive);
         this.cssRoot.style.pointerEvents = mobile ? 'auto' : 'none';
         this.cssRenderer.domElement.style.pointerEvents = mobile ? 'auto' : 'none';
-        // CSS3DObject sets pointer-events inline. Only the flat mobile view
-        // takes native input; room taps and the desktop proxy stay outside it.
+        // CSS3DObject sets pointer-events inline. Native mobile input stays
+        // inside the projected screen; room taps and desktop proxy stay outside.
         if (this.monitorIframe) {
             this.monitorIframe.style.pointerEvents = mobile ? 'auto' : 'none';
         }
@@ -2881,6 +2857,7 @@ export default class SpatialPortfolio {
         group.add(cssObject);
         this.monitorCssObject = cssObject;
         this.monitorElement = element;
+        this.updateMonitorViewport();
 
         const occlusionMaterial = new THREE.MeshBasicMaterial({
             color: 0x000000,
@@ -3037,9 +3014,8 @@ export default class SpatialPortfolio {
     }
 
     private createMonitorElement() {
-        // Apply the CSS3D matrix to the browsing surface itself. A transformed
-        // wrapper leaves WebKit's iframe painting with a second layout origin.
-        // Keep this same frame mounted when switching to the mobile full screen.
+        // Keep one live document attached throughout camera movement. Mobile
+        // projects this plane directly through the same camera used by WebGL.
         const iframe = document.createElement('iframe');
         iframe.src = '/os/';
         iframe.title = 'JianweiOS';
@@ -3290,8 +3266,9 @@ export default class SpatialPortfolio {
     }
 
     private onPointerMove(event: MouseEvent) {
-        this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         this.labelEl.style.left = `${event.clientX}px`;
         this.labelEl.style.top = `${event.clientY}px`;
     }
@@ -3802,23 +3779,25 @@ export default class SpatialPortfolio {
         const normal = MONITOR_NORMAL.clone()
             .applyQuaternion(quaternion)
             .normalize();
-        const screenWidth = MONITOR_CSS_SIZE.x * Math.abs(scale.x);
-        const screenHeight = MONITOR_CSS_SIZE.y * Math.abs(scale.y);
+        const screenWidth = this.monitorViewportSize.x * Math.abs(scale.x);
+        const screenHeight = this.monitorViewportSize.y * Math.abs(scale.y);
         const verticalFov = THREE.MathUtils.degToRad(this.camera.fov);
         const horizontalFov =
             2 * Math.atan(Math.tan(verticalFov / 2) * this.camera.aspect);
 
-        const framedWidth = screenWidth * 1.12;
-        const framedHeight = screenHeight * 1.18;
+        const mobile = this.mobileMonitorQuery.matches;
+        const framedWidth = mobile ? screenWidth : screenWidth * 1.12;
+        const framedHeight = mobile ? screenHeight : screenHeight * 1.18;
         const distanceForWidth =
-            framedWidth / (2 * Math.tan(horizontalFov / 2) * 0.88);
+            framedWidth / (2 * Math.tan(horizontalFov / 2) * (mobile ? 0.94 : 0.88));
         const distanceForHeight =
-            framedHeight / (2 * Math.tan(verticalFov / 2) * 0.88);
-        const distance = THREE.MathUtils.clamp(
-            Math.max(distanceForWidth, distanceForHeight),
-            1.05,
-            2.4
-        );
+            framedHeight / (2 * Math.tan(verticalFov / 2) * (
+                mobile ? this.getMobileMonitorHeight() / window.innerHeight : 0.88
+            ));
+        const fittedDistance = Math.max(distanceForWidth, distanceForHeight);
+        const distance = mobile
+            ? Math.max(0.3, fittedDistance)
+            : THREE.MathUtils.clamp(fittedDistance, 1.05, 2.4);
 
         return {
             position: center.clone().addScaledVector(normal, distance),
@@ -3855,6 +3834,7 @@ export default class SpatialPortfolio {
         onComplete?: () => void,
         easing: (amount: number) => number = TWEEN.Easing.Quintic.InOut
     ) {
+        this.cameraTween?.stop();
         const startPosition = this.camera.position.clone();
         const startTarget = this.cameraTarget.clone();
         const tweenState = {
@@ -3866,7 +3846,7 @@ export default class SpatialPortfolio {
             targetZ: startTarget.z,
         };
 
-        new TWEEN.Tween(tweenState)
+        this.cameraTween = new TWEEN.Tween(tweenState)
             .to(
                 {
                     positionX: pose.position.x,
@@ -3892,6 +3872,7 @@ export default class SpatialPortfolio {
                 );
             })
             .onComplete(() => {
+                this.cameraTween = null;
                 this.camera.position.copy(pose.position);
                 this.cameraTarget.copy(pose.target);
                 if (onComplete) onComplete();
@@ -4281,13 +4262,71 @@ export default class SpatialPortfolio {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.cssRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.updateMonitorViewport();
         this.updateMonitorInteractivity();
-        if (this.focusedKey === 'computer' && !this.mobileMonitorActive) {
+        if (this.focusedKey === 'computer') {
             const pose = this.getComputerFocusPose();
             if (pose) {
+                this.cameraTween?.stop();
+                this.cameraTween = null;
                 this.camera.position.copy(pose.position);
                 this.cameraTarget.copy(pose.target);
             }
+        }
+    }
+
+    private getMobileMonitorHeight() {
+        // Leave room below the physical frame for the native return control,
+        // including in landscape with browser chrome and a home indicator.
+        return Math.max(80, Math.min(window.innerHeight * 0.74, window.innerHeight - 144));
+    }
+
+    private updateMonitorViewport() {
+        if (!this.monitorIframe || !this.monitorCssObject) return;
+        const aspect = this.monitorPlaneSize.x / this.monitorPlaneSize.y;
+        const mobileWidth = Math.max(280, Math.round(Math.min(
+            window.innerWidth * 0.94,
+            this.getMobileMonitorHeight() * aspect,
+            768
+        )));
+        const width = this.mobileMonitorQuery.matches ? mobileWidth : MONITOR_CSS_SIZE.x;
+        const height = this.mobileMonitorQuery.matches
+            ? Math.round(width / aspect)
+            : MONITOR_CSS_SIZE.y;
+        this.monitorViewportSize.set(width, height);
+        this.monitorIframe.style.width = `${width}px`;
+        this.monitorIframe.style.height = `${height}px`;
+        this.monitorIframe.width = String(width);
+        this.monitorIframe.height = String(height);
+        this.monitorCssObject.scale.set(
+            this.monitorPlaneSize.x / width,
+            this.monitorPlaneSize.y / height,
+            1
+        );
+    }
+
+    private updateMonitorProjection() {
+        if (!this.monitorIframe || !this.monitorCssObject) return;
+        if (!this.mobileMonitorQuery.matches) {
+            this.monitorIframe.classList.remove('is-projection-hidden');
+            return;
+        }
+        const canvas = this.renderer.domElement.getBoundingClientRect();
+        const root = this.cssRoot.getBoundingClientRect();
+        const projection = getMonitorProjection(
+            this.camera,
+            this.monitorCssObject.matrixWorld,
+            this.monitorViewportSize,
+            {
+                width: canvas.width,
+                height: canvas.height,
+                left: canvas.left - root.left,
+                top: canvas.top - root.top,
+            }
+        );
+        this.monitorIframe.classList.toggle('is-projection-hidden', !projection);
+        if (projection) {
+            this.monitorIframe.style.setProperty('--monitor-projection', projection);
         }
     }
 
@@ -4520,6 +4559,7 @@ export default class SpatialPortfolio {
         this.camera.updateMatrixWorld(true);
         this.updateMonitorScreen();
         this.cssRenderer.render(this.scene, this.camera);
+        this.updateMonitorProjection();
         if (!this.renderPortalSurface()) {
             this.renderer.render(this.scene, this.camera);
         }
