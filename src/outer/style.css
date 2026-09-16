@@ -75,6 +75,8 @@ body {
 
 .v2-monitor-screen {
     position: relative;
+    top: 0;
+    left: 0;
     overflow: hidden;
     background: linear-gradient(180deg, #f5f8f8 0%, #edf2f3 100%);
     box-shadow: inset 0 0 18px rgb(0 0 0 / 0.08);
@@ -143,6 +145,24 @@ body {
 
 .v2-monitor-iframe.is-loaded {
     opacity: 1;
+}
+
+@media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
+    /* Keep the live frame on the CSS3D surface's plane. Extra filtered and
+       translated layers can displace iframe painting in iOS WebKit. The
+       WebGL glass/dimming layers already provide the monitor treatment. */
+    .v2-monitor-screen {
+        contain: layout style;
+        filter: none !important;
+        will-change: auto;
+    }
+
+    .v2-monitor-iframe {
+        display: block;
+        transform: none;
+        filter: none;
+        backface-visibility: visible;
+    }
 }
 
 .v2-monitor-screen.is-interactive,
