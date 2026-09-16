@@ -56,7 +56,8 @@ body {
 }
 
 .v2-canvas {
-    position: fixed;
+    /* The fixed #webgl root defines the viewport for both renderers. */
+    position: absolute;
     inset: 0;
     display: block;
     background: transparent;
@@ -64,7 +65,9 @@ body {
 }
 
 .v2-css3d {
-    position: fixed;
+    /* Keep perspective relative to #css, not a second fixed viewport whose
+       composited origin can include iOS browser toolbars. */
+    position: absolute;
     inset: 0;
     pointer-events: none;
 }
