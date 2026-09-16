@@ -441,7 +441,15 @@ body {
 }
 
 .v2-room-hud-time {
-    min-width: 0;
+    width: calc(8ch + 32px);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Reserve the controls' final footprint throughout the typing sequence. */
+.v2-room-hud-actions > .v2-room-hud-sequenced:not(.is-revealed) {
+    display: flex;
+    visibility: hidden;
 }
 
 .v2-room-hud-button {
@@ -597,19 +605,15 @@ body {
         font-size: 10px;
     }
 
-    .v2-room-hud-time {
-        min-width: 0;
-    }
-
     .v2-room-hud-button {
-        width: 44px;
-        min-width: 44px;
-        height: 44px;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
     }
 
     .v2-room-hud-button img {
-        max-width: 16px;
-        max-height: 16px;
+        max-width: 10px;
+        max-height: 10px;
     }
 }
 
