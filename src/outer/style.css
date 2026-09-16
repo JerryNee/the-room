@@ -73,101 +73,31 @@ body {
     pointer-events: auto;
 }
 
+/* The iframe is the CSS3D object, with one transform and one sizing origin.
+   The WebGL screen layers supply glass and dimming without DOM overlays. */
 .v2-monitor-screen {
-    position: relative;
+    position: absolute;
     top: 0;
     left: 0;
-    overflow: hidden;
-    background: linear-gradient(180deg, #f5f8f8 0%, #edf2f3 100%);
-    box-shadow: inset 0 0 18px rgb(0 0 0 / 0.08);
-    backface-visibility: hidden;
-    contain: layout paint style;
-    opacity: 0;
-    transform: translateZ(0);
-    transition:
-        opacity 90ms linear,
-        filter 90ms linear;
-    will-change: opacity, filter;
-    pointer-events: none;
-}
-
-.v2-monitor-screen::before,
-.v2-monitor-screen::after {
-    position: absolute;
-    inset: 0;
-    content: "";
-    pointer-events: none;
-    z-index: 2;
-}
-
-.v2-monitor-screen::before {
-    background:
-        linear-gradient(
-            118deg,
-            rgb(255 255 255 / 0) 0%,
-            rgb(255 255 255 / 0) 54%,
-            rgb(255 255 255 / 0.014) 61%,
-            rgb(255 255 255 / 0.004) 66%,
-            rgb(255 255 255 / 0) 78%
-        ),
-        linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent 20%);
-    mix-blend-mode: screen;
-    opacity: 0.12;
-}
-
-.v2-monitor-screen::after {
-    box-shadow:
-        inset 0 0 13px rgb(0 0 0 / 0.1),
-        inset 0 -8px 14px rgb(0 0 0 / 0.04);
-}
-
-.v2-monitor-fallback {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, #f4f7f8 0%, #edf2f3 100%);
-}
-
-.v2-monitor-iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    display: block;
     border: 0;
     box-sizing: border-box;
+    overflow: hidden;
+    background: #edf2f3;
     backface-visibility: hidden;
     opacity: 0;
+    transition: opacity 90ms linear;
     pointer-events: none;
-    filter: saturate(0.94) contrast(1.02) brightness(0.98);
-    transform: translateZ(0);
-    transition: opacity 180ms ease-out;
-    z-index: 1;
 }
 
-.v2-monitor-iframe.is-loaded {
-    opacity: 1;
+.v2-monitor-screen:not(.is-loaded) {
+    visibility: hidden;
 }
 
 @media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
-    /* Keep the live frame on the CSS3D surface's plane. Extra filtered and
-       translated layers can displace iframe painting in iOS WebKit. The
-       WebGL glass/dimming layers already provide the monitor treatment. */
     .v2-monitor-screen {
-        contain: layout style;
         filter: none !important;
-        will-change: auto;
     }
-
-    .v2-monitor-iframe {
-        display: block;
-        transform: none;
-        filter: none;
-        backface-visibility: visible;
-    }
-}
-
-.v2-monitor-screen.is-interactive,
-.v2-monitor-screen.is-interactive .v2-monitor-iframe {
-    pointer-events: auto;
 }
 
 .v2-ui {
@@ -229,18 +159,7 @@ body {
     transform: none !important;
     opacity: 1 !important;
     filter: none !important;
-    box-shadow: none;
     transition: none;
-}
-
-#css.is-mobile-monitor .v2-monitor-screen::before,
-#css.is-mobile-monitor .v2-monitor-screen::after {
-    display: none;
-}
-
-#css.is-mobile-monitor .v2-monitor-iframe {
-    filter: none;
-    transform: none;
     touch-action: auto;
 }
 

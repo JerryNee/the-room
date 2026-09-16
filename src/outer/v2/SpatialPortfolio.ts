@@ -316,7 +316,7 @@ export default class SpatialPortfolio {
     private doorBakedShadowMesh: THREE.Mesh | null;
     private doorBakedShadowMaterial: THREE.MeshBasicMaterial | null;
     private monitorCssObject: CSS3DObject | null;
-    private monitorElement: HTMLDivElement | null;
+    private monitorElement: HTMLIFrameElement | null;
     private monitorIframe: HTMLIFrameElement | null;
     private monitorInputProxyEl: HTMLDivElement;
     private mobileMonitorQuery = window.matchMedia(MOBILE_MONITOR_QUERY);
@@ -788,6 +788,11 @@ export default class SpatialPortfolio {
         this.monitorElement?.classList.toggle('is-interactive', interactive);
         this.cssRoot.style.pointerEvents = mobile ? 'auto' : 'none';
         this.cssRenderer.domElement.style.pointerEvents = mobile ? 'auto' : 'none';
+        // CSS3DObject sets pointer-events inline. Only the flat mobile view
+        // takes native input; room taps and the desktop proxy stay outside it.
+        if (this.monitorIframe) {
+            this.monitorIframe.style.pointerEvents = mobile ? 'auto' : 'none';
+        }
         if (this.monitorElement?.parentElement) {
             this.monitorElement.parentElement.style.pointerEvents = mobile ? 'auto' : 'none';
         }
@@ -3032,20 +3037,18 @@ export default class SpatialPortfolio {
     }
 
     private createMonitorElement() {
-        const container = document.createElement('div');
-        container.className = 'v2-monitor-screen';
-        container.style.width = `${MONITOR_CSS_SIZE.x}px`;
-        container.style.height = `${MONITOR_CSS_SIZE.y}px`;
-
-        const fallback = document.createElement('div');
-        fallback.className = 'v2-monitor-fallback';
-        fallback.setAttribute('aria-hidden', 'true');
-
+        // Apply the CSS3D matrix to the browsing surface itself. A transformed
+        // wrapper leaves WebKit's iframe painting with a second layout origin.
+        // Keep this same frame mounted when switching to the mobile full screen.
         const iframe = document.createElement('iframe');
         iframe.src = '/os/';
         iframe.title = 'JianweiOS';
         iframe.id = 'computer-screen';
-        iframe.className = 'v2-monitor-iframe';
+        iframe.className = 'v2-monitor-screen v2-monitor-iframe';
+        iframe.width = String(MONITOR_CSS_SIZE.x);
+        iframe.height = String(MONITOR_CSS_SIZE.y);
+        iframe.style.width = `${MONITOR_CSS_SIZE.x}px`;
+        iframe.style.height = `${MONITOR_CSS_SIZE.y}px`;
         iframe.frameBorder = '0';
         iframe.addEventListener('load', () => {
             iframe.classList.add('is-loaded');
@@ -3062,9 +3065,7 @@ export default class SpatialPortfolio {
         });
         this.monitorIframe = iframe;
 
-        container.appendChild(fallback);
-        container.appendChild(iframe);
-        return container;
+        return iframe;
     }
 
     private createStudioDisplayGlassLayer(group: THREE.Group) {
